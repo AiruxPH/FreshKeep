@@ -1,5 +1,12 @@
 # Offline change log
 
+## 2026-11-21 (15:41 +08:00)
+
+- **Reason for change:** User requested building the smaller Android release APK for on-device testing of the new schema v7, camera capture, launcher icon, and printed-time features.
+- **Release APK build (`build/app/outputs/flutter-apk/app-release.apk`):**
+  - Executed `flutter build apk --release` (using debug signing fallback since `android/key.properties` is not yet present).
+  - First Gradle attempt failed transiently on `mergeReleaseNativeLibs` (`Permission denied: getsockopt` fetching Flutter release engine artifacts); Flutter's automatic retry succeeded (`275.5s`) and produced `build/app/outputs/flutter-apk/app-release.apk` (`58.97 MB`, built `2026-11-21 15:41:02 +08:00`).
+
 ## 2026-11-21 (15:18 +08:00)
 
 - **Reason for change:** User approved all three follow-up enhancements: direct camera capture, a custom FreshKeep app launcher icon across Android and web, and calculated storage-guidance dates with explicit rule/condition/anchor confirmation.
