@@ -147,76 +147,71 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final dir = await Directory.systemTemp.createTemp('freshkeep_onboarding_');
-    final file = File('${dir.path}/db.sqlite');
-    var db = InventoryDatabase(NativeDatabase(file));
-    try {
-      expect(await db.hasCompletedOnboarding(), isFalse);
+    // First launch: Splash -> Onboarding -> Get started -> Inventory.
+    final firstDb = InventoryDatabase(NativeDatabase.memory());
+    addTearDown(firstDb.close);
+    expect(await firstDb.hasCompletedOnboarding(), isFalse);
 
-      // First launch: Splash -> Onboarding -> Get started -> Inventory.
-      await tester.pumpWidget(
-        FreshKeepApp(
-          database: db,
-          showSplash: true,
-          showOnboardingIfNeeded: true,
-          splashDuration: const Duration(milliseconds: 200),
-        ),
-      );
-      await tester.pump();
-      expect(find.byType(SplashScreen), findsOneWidget);
-      expect(find.byType(OnboardingScreen), findsNothing);
+    await tester.pumpWidget(
+      FreshKeepApp(
+        database: firstDb,
+        showSplash: true,
+        showOnboardingIfNeeded: true,
+        splashDuration: const Duration(milliseconds: 200),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(SplashScreen), findsOneWidget);
+    expect(find.byType(OnboardingScreen), findsNothing);
 
-      await tester.pump(const Duration(milliseconds: 250));
-      await tester.pumpAndSettle();
-      expect(find.byType(SplashScreen), findsNothing);
-      expect(find.byType(OnboardingScreen), findsOneWidget);
-      expect(find.text('Welcome'), findsOneWidget);
-      expect(find.text('Get started'), findsOneWidget);
-      expect(find.text('My groceries'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpAndSettle();
+    expect(find.byType(SplashScreen), findsNothing);
+    expect(find.byType(OnboardingScreen), findsOneWidget);
+    expect(find.text('Welcome'), findsOneWidget);
+    expect(find.text('Get started'), findsOneWidget);
+    expect(find.text('My groceries'), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('intro-continue')));
-      await tester.pumpAndSettle();
-      expect(find.byType(OnboardingScreen), findsNothing);
-      expect(find.text('My groceries'), findsOneWidget);
-      expect(await db.hasCompletedOnboarding(), isTrue);
+    await tester.tap(find.byKey(const ValueKey('intro-continue')));
+    await tester.pumpAndSettle();
+    expect(find.byType(OnboardingScreen), findsNothing);
+    expect(find.text('My groceries'), findsOneWidget);
+    expect(await firstDb.hasCompletedOnboarding(), isTrue);
+    await tester.pumpWidget(const SizedBox());
 
-      await tester.pumpWidget(const SizedBox());
-      await db.close();
+    // Subsequent launch (onboarding already completed): Splash -> directly to Inventory.
+    final secondDb = InventoryDatabase(NativeDatabase.memory());
+    addTearDown(secondDb.close);
+    await secondDb.markOnboardingCompleted();
 
-      // Second launch with persisted DB: Splash -> directly to Inventory.
-      db = InventoryDatabase(NativeDatabase(file));
-      await tester.pumpWidget(
-        FreshKeepApp(
-          database: db,
-          showSplash: true,
-          showOnboardingIfNeeded: true,
-          splashDuration: const Duration(milliseconds: 200),
-        ),
-      );
-      await tester.pump();
-      expect(find.byType(SplashScreen), findsOneWidget);
+    await tester.pumpWidget(
+      FreshKeepApp(
+        database: secondDb,
+        showSplash: true,
+        showOnboardingIfNeeded: true,
+        splashDuration: const Duration(milliseconds: 200),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(SplashScreen), findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 250));
-      await tester.pumpAndSettle();
-      expect(find.byType(OnboardingScreen), findsNothing);
-      expect(find.text('My groceries'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpAndSettle();
+    expect(find.byType(OnboardingScreen), findsNothing);
+    expect(find.text('My groceries'), findsOneWidget);
 
-      // Verify large text scaling on OnboardingScreen does not throw layout overflows.
-      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      await tester.pumpWidget(
-        MaterialApp(home: OnboardingScreen(onContinue: () {})),
-      );
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
-    } finally {
-      await db.close();
-      await dir.delete(recursive: true);
-    }
+    // Verify large text scaling on OnboardingScreen does not throw layout overflows.
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpWidget(
+      MaterialApp(home: OnboardingScreen(onContinue: () {})),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
   });
 
-  test('v7 upgrade to v8 creates app_preferences and preserves existing inventory', () async {
+  test('v7 upgrade to v8 creates app_preferences and persists onboarding across file reopen', () async {
     final dir = await Directory.systemTemp.createTemp('freshkeep_v8_');
     final file = File('${dir.path}/v7.sqlite');
     var db = InventoryDatabase(NativeDatabase(file));
@@ -241,6 +236,9 @@ void main() {
       expect(loaded.draft.name, 'Milk');
       expect(loaded.draft.printedTime, '10:30');
       await db.markOnboardingCompleted();
+      await db.close();
+
+      db = InventoryDatabase(NativeDatabase(file));
       expect(await db.hasCompletedOnboarding(), isTrue);
     } finally {
       await db.close();

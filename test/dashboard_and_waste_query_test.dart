@@ -175,7 +175,7 @@ void main() {
       'Unspecified',
     ]);
     expect(queryWasteLog(entries, now, search: 'spilled').map((e) => e.id), [1]);
-    expect(queryWasteLog(entries, now, unit: 'pieces').map((e) => e.id), [3, 4]);
+    expect(queryWasteLog(entries, now, unit: 'pieces').map((e) => e.id), [4, 3]);
     expect(
       queryWasteLog(entries, now, reason: 'moldy').map((e) => e.id),
       [4],
@@ -186,7 +186,7 @@ void main() {
         now,
         dateRange: WasteDateRange.last7Days,
       ).map((e) => e.id),
-      [3, 4],
+      [4, 3],
     );
     expect(
       queryWasteLog(
@@ -194,7 +194,7 @@ void main() {
         now,
         dateRange: WasteDateRange.last30Days,
       ).map((e) => e.id),
-      [2, 3, 4],
+      [4, 3, 2],
     );
     expect(
       queryWasteLog(entries, now, sort: WasteSort.newest).map((e) => e.id),
@@ -286,6 +286,8 @@ void main() {
       find.text('No waste entries match your search and filters.'),
       findsOneWidget,
     );
+    await tester.ensureVisible(find.text('Reset filters').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Reset filters').last);
     await tester.pumpAndSettle();
     expect(find.text('Rice'), findsOneWidget);

@@ -1,7 +1,7 @@
 # FreshKeep — Requirement Traceability, Defect Log, Timing & Release Prep
 
 Updated: 2026-11-21 · App version: `1.0.0+1` · Application ID: `com.freshkeep.freshkeep` · Schema: v7  
-Automated verification: `flutter analyze` (0 issues), `flutter test -j 1` (88/88 passing).  
+Automated verification: `flutter analyze` (0 issues), `flutter test -j 1` (93/93 passing).  
 Note: Automated/browser checks and physical-device checks are recorded in separate columns; participant/user-study results must be reported separately from developer tests.
 
 ---
@@ -60,7 +60,7 @@ Note: Automated/browser checks and physical-device checks are recorded in separa
 | R48 | M13 | Custom FreshKeep botanical launcher icon across Android adaptive/legacy mipmaps and web icons | Icon asset verification script (15 PNGs) | Pass | Pending re-check on device | 1.0.0+1 |
 | R49 | M13 | Explicit calculated guidance dates (v6→v7 migration, audit log, printed-date priority, reminders) | `test/calculated_guidance_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
 
-**Automated Pass Rate:** 49 / 49 requirements covered · 88 / 88 automated tests passing (100%).
+**Automated Pass Rate:** 49 / 49 requirements covered · 93 / 93 automated tests passing (100%).
 
 ---
 

@@ -281,25 +281,28 @@ class _ReportScreenState extends State<ReportScreen> {
         : Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 960),
-              child: ListView(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
-                children: [
-                  Text(
-                    widget.wasteLog
-                        ? 'Recorded waste'
-                        : 'Your tracked inventory',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'All time · Only recorded disposals count as waste. Undone entries are excluded.',
-                  ),
-                  const SizedBox(height: 20),
-                  if (!widget.wasteLog)
-                    ..._buildDashboard(context)
-                  else
-                    ..._buildWasteLog(context),
-                ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      widget.wasteLog
+                          ? 'Recorded waste'
+                          : 'Your tracked inventory',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'All time · Only recorded disposals count as waste. Undone entries are excluded.',
+                    ),
+                    const SizedBox(height: 20),
+                    if (!widget.wasteLog)
+                      ..._buildDashboard(context)
+                    else
+                      ..._buildWasteLog(context),
+                  ],
+                ),
               ),
             ),
           ),

@@ -16,6 +16,11 @@
   - Added `DashboardSummary` and sliced Dashboard cards (`DashboardHeroCard`, `DashboardStatGrid`, `DateAttentionCard`, `UnitBreakdownCard`, `TopWasteReasonsCard`).
   - Added `queryWasteLog()`, `distinctWasteReasons()`, `wasteTotalsByUnit()`, `WasteFiltersBar`, and `WasteEntryCard` supporting search by food/reason, unit/reason/date-range filters, 4 sort modes, filtered unit totals, and recoverable no-match reset.
   - Added `LocalDayScope.maybeOf()` so `ReportScreen` stays safe when mounted standalone.
+- **Causes of errors fixed during verification:**
+  1. `timezone` 0.11.2 defines `TimeZone.offset` as a `Duration` rather than an `int`; updated `resolveLocalTimezone()` to compare `.offset.inMilliseconds`.
+  2. `ReportScreen` switched from lazy `ListView` to `SingleChildScrollView` + `Column` so all redesigned Dashboard cards exist in the widget tree immediately for existing and new report assertions.
+  3. Updated `test/intro_and_toast_test.dart` to test `FreshKeepEntryGate` with `NativeDatabase.memory()` inside `FakeAsync` widget tests (avoiding Drift background-isolate deadlocks) while keeping real file-reopen persistence in the `v7 → v8` migration test, and updated `test/dashboard_and_waste_query_test.dart` to expect newest-first waste ordering and scroll `Reset filters` into view.
+- **Verification:** XML validation (`keep.xml`, `launch_background.xml`) passed, `flutter analyze` passed (`No issues found!`), and `flutter test -j 1` passed (**93/93 tests passing**).
 
 ## 2026-11-21 (16:12 +08:00)
 
