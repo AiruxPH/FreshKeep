@@ -18,6 +18,7 @@
   - `generate_image` outputs `.jpg` into the artifact directory and lacks shell access; sampled its corner background pixel (`#226345`) and converted/resized all 15 Android/web PNG targets + `colors.xml` via PowerShell `System.Drawing`.
   - Updated legacy v1–v5 migration fixtures in `test/stock_actions_test.dart`, `test/reminder_test.dart`, `test/batch_edit_test.dart`, and `test/food_photo_test.dart` to drop the new v7 guidance columns before running `onUpgrade`.
   - Fixed two test expectation/viewport issues in `test/calculated_guidance_test.dart`: `queryInventory()` defaults to `InventorySort.newest` (`[2, 1]` instead of `[1, 2]`), and the widget test needed `pumpAndSettle()` after `ensureVisible` plus an expanded test surface so the guidance card action button sat inside the clickable viewport.
+- **Verification:** `flutter analyze` passed (`No issues found!`) and `flutter test -j 1` passed (`83/83` tests passing), alongside verified dimensions (`48`–`512` px) across all 15 generated Android/web PNG icons and valid XML resources.
 
 ## 2026-11-21 (14:56 +08:00)
 
