@@ -30,6 +30,9 @@ class EditTestNotifications implements NotificationService {
 
   @override
   Future<void> sendTest() async {}
+
+  @override
+  Future<void> openSettings() async {}
 }
 
 void main() {

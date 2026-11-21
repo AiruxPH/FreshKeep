@@ -71,7 +71,7 @@ Record every defect observed during device testing or user evaluation with its b
 | Defect ID | Build # | Date | Severity | Area | Summary & Reproduction Steps | Status | Retest Build & Result |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | D-001 | 1.0.0+1 | 2026-11-21 | Low | Migration Tests | Legacy v1–v4 test fixtures failed with `duplicate column name: printed_time` after schema v6 added `printed_time` to `onCreate`. Fixed by dropping `printed_time` in legacy fixtures to match old schemas. | Closed | 1.0.0+1 · 76/76 Pass |
-| _D-002_ | _1.0.0+1_ | _YYYY-MM-DD_ | _High / Med / Low_ | _e.g. Notifications_ | _Describe steps to reproduce_ | _Open / Closed_ | _Build # · Pass/Fail_ |
+| D-002 | 1.0.0+1 | 2026-11-21 | High | Release Notifications | R8 resource shrinking stripped `@drawable/ic_stat_freshkeep` (`resources.txt:136`), causing release APK notification init/test to fail even when OS permission was enabled. Fixed by adding `android/app/src/main/res/raw/keep.xml` + `areNotificationsEnabled()` pre-check & `openSettings()`. | Closed | Pending release APK retest |
 
 ---
 

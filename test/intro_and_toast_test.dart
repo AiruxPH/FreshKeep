@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,7 +7,8 @@ import 'package:freshkeep/data/inventory_database.dart';
 import 'package:freshkeep/domain/batch.dart';
 import 'package:freshkeep/domain/format_remaining_duration.dart';
 import 'package:freshkeep/domain/stock_event.dart';
-import 'package:freshkeep/intro/intro_screen.dart';
+import 'package:freshkeep/intro/onboarding_screen.dart';
+import 'package:freshkeep/intro/splash_screen.dart';
 import 'package:freshkeep/main.dart';
 import 'package:freshkeep/widgets/toast/freshkeep_toast_card.dart';
 
@@ -136,7 +139,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('opening intro screen gates launch and handles large text without overflow', (
+  testWidgets('splash shows on every launch and onboarding only appears on first open', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -144,32 +147,105 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final db = InventoryDatabase(NativeDatabase.memory());
-    addTearDown(db.close);
+    final dir = await Directory.systemTemp.createTemp('freshkeep_onboarding_');
+    final file = File('${dir.path}/db.sqlite');
+    var db = InventoryDatabase(NativeDatabase(file));
+    try {
+      expect(await db.hasCompletedOnboarding(), isFalse);
 
-    await tester.pumpWidget(FreshKeepApp(database: db, showIntro: true));
-    await tester.pumpAndSettle();
+      // First launch: Splash -> Onboarding -> Get started -> Inventory.
+      await tester.pumpWidget(
+        FreshKeepApp(
+          database: db,
+          showSplash: true,
+          showOnboardingIfNeeded: true,
+          splashDuration: const Duration(milliseconds: 200),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(SplashScreen), findsOneWidget);
+      expect(find.byType(OnboardingScreen), findsNothing);
 
-    expect(find.byType(IntroScreen), findsOneWidget);
-    expect(find.text('FreshKeep'), findsOneWidget);
-    expect(find.text('Get started'), findsOneWidget);
-    expect(find.text('My groceries'), findsNothing);
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpAndSettle();
+      expect(find.byType(SplashScreen), findsNothing);
+      expect(find.byType(OnboardingScreen), findsOneWidget);
+      expect(find.text('Welcome'), findsOneWidget);
+      expect(find.text('Get started'), findsOneWidget);
+      expect(find.text('My groceries'), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('intro-continue')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('intro-continue')));
+      await tester.pumpAndSettle();
+      expect(find.byType(OnboardingScreen), findsNothing);
+      expect(find.text('My groceries'), findsOneWidget);
+      expect(await db.hasCompletedOnboarding(), isTrue);
 
-    expect(find.byType(IntroScreen), findsNothing);
-    expect(find.text('My groceries'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await db.close();
 
-    // Verify large text scaling on IntroScreen does not throw layout overflows.
-    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
-    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-    await tester.pumpWidget(
-      MaterialApp(home: IntroScreen(onContinue: () {})),
-    );
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
+      // Second launch with persisted DB: Splash -> directly to Inventory.
+      db = InventoryDatabase(NativeDatabase(file));
+      await tester.pumpWidget(
+        FreshKeepApp(
+          database: db,
+          showSplash: true,
+          showOnboardingIfNeeded: true,
+          splashDuration: const Duration(milliseconds: 200),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(SplashScreen), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpAndSettle();
+      expect(find.byType(OnboardingScreen), findsNothing);
+      expect(find.text('My groceries'), findsOneWidget);
+
+      // Verify large text scaling on OnboardingScreen does not throw layout overflows.
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpWidget(
+        MaterialApp(home: OnboardingScreen(onContinue: () {})),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    } finally {
+      await db.close();
+      await dir.delete(recursive: true);
+    }
+  });
+
+  test('v7 upgrade to v8 creates app_preferences and preserves existing inventory', () async {
+    final dir = await Directory.systemTemp.createTemp('freshkeep_v8_');
+    final file = File('${dir.path}/v7.sqlite');
+    var db = InventoryDatabase(NativeDatabase(file));
+    try {
+      await db.addBatch(
+        BatchDraft(
+          name: 'Milk',
+          quantity: 500,
+          unit: 'mL',
+          storage: 'Fridge',
+          printedDate: '2026-11-25',
+          printedTime: '10:30',
+        ),
+      );
+      await db.customStatement('DROP TABLE app_preferences');
+      await db.customStatement('PRAGMA user_version = 7');
+      await db.close();
+
+      db = InventoryDatabase(NativeDatabase(file));
+      expect(await db.hasCompletedOnboarding(), isFalse);
+      final loaded = (await db.loadBatches()).single;
+      expect(loaded.draft.name, 'Milk');
+      expect(loaded.draft.printedTime, '10:30');
+      await db.markOnboardingCompleted();
+      expect(await db.hasCompletedOnboarding(), isTrue);
+    } finally {
+      await db.close();
+      await dir.delete(recursive: true);
+    }
   });
 
   test('loadRecentUndoableEvents returns newest-first unreversed actions and excludes reversals', () async {

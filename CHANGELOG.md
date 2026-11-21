@@ -1,5 +1,22 @@
 # Offline change log
 
+## 2026-11-21 (16:48 +08:00)
+
+- **Reason for change:** User reported three findings from phone testing: (1) notifications failed in the release build even when enabled in Android phone settings, (2) the intro screen should act as first-open-only onboarding with a separate splash screen shown on every launch, and (3) Dashboard needed richer visual presentation while Waste Log needed search and filter controls.
+- **Root cause of Android release notification failure:** `build/app/outputs/mapping/release/resources.txt` line 136 confirmed R8 resource shrinking removed `drawable:ic_stat_freshkeep` (`is not reachable`) because Dart only references `'ic_stat_freshkeep'` dynamically by name. At runtime in release APKs, `FlutterLocalNotificationsPlugin.initialize()` threw `invalid_icon`, triggering `ReminderScreen` and `ReminderController`'s generic sync/permission error messages even when OS permissions were granted.
+- **Notification fix & timezone hardening (`android/app/src/main/res/raw/keep.xml`, `lib/reminders/resolve_local_timezone.dart`, `lib/reminders/notification_service.dart`, `lib/reminder_screen.dart`):**
+  - Added `keep.xml` retaining `@drawable/ic_stat_freshkeep`, `@drawable/launch_background`, `@mipmap/ic_launcher`, and `@mipmap/ic_launcher_foreground` during R8 shrinking.
+  - Added `resolveLocalTimezone()` with UTC-offset fallback for non-standard device timezone IDs.
+  - Checked `areNotificationsEnabled()` before `requestNotificationsPermission()`, added explicit `icon: 'ic_stat_freshkeep'` + high channel importance/priority, implemented `openSettings()`, and surfaced an `Open notification settings` shortcut and accurate error text in `ReminderScreen`.
+- **Splash screen & first-open-only onboarding (`android/app/src/main/res/drawable*/launch_background.xml`, `lib/data/inventory_database.dart`, `lib/intro/*`, `lib/main.dart`):**
+  - Branded Android native `launch_background.xml` with `@color/ic_launcher_background` (`#226345`) and `@drawable/ic_stat_freshkeep`.
+  - Bumped database `schemaVersion` from 7 to 8, adding `app_preferences` (`hasCompletedOnboarding()` / `markOnboardingCompleted()`).
+  - Created `SplashScreen`, renamed/upgraded `OnboardingScreen` (preserving `IntroScreen` typedef), and updated `FreshKeepEntryGate` + `main()` so every launch shows `SplashScreen` while `OnboardingScreen` only shows on the first launch until dismissed.
+- **Dashboard redesign & Waste Log search/filter/sort (`lib/domain/dashboard_summary.dart`, `lib/domain/waste_query.dart`, `lib/widgets/dashboard/*`, `lib/widgets/waste/*`, `lib/widgets/local_day_scope.dart`, `lib/report_screen.dart`):**
+  - Added `DashboardSummary` and sliced Dashboard cards (`DashboardHeroCard`, `DashboardStatGrid`, `DateAttentionCard`, `UnitBreakdownCard`, `TopWasteReasonsCard`).
+  - Added `queryWasteLog()`, `distinctWasteReasons()`, `wasteTotalsByUnit()`, `WasteFiltersBar`, and `WasteEntryCard` supporting search by food/reason, unit/reason/date-range filters, 4 sort modes, filtered unit totals, and recoverable no-match reset.
+  - Added `LocalDayScope.maybeOf()` so `ReportScreen` stays safe when mounted standalone.
+
 ## 2026-11-21 (16:12 +08:00)
 
 - **Reason for change:** Because Use/Discard quick-action toasts now auto-dismiss after 4 seconds, the user requested a persistent alternative way to undo actions (especially for depleted batches that leave the default `"In stock"` view).

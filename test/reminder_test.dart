@@ -11,6 +11,9 @@ import 'package:freshkeep/domain/stock_event.dart';
 import 'package:freshkeep/reminder_screen.dart';
 import 'package:freshkeep/reminders/notification_service.dart';
 import 'package:freshkeep/reminders/reminder_controller.dart';
+import 'package:freshkeep/reminders/resolve_local_timezone.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 class FakeNotifications implements NotificationService {
   List<PlannedReminder> scheduled = [];
@@ -34,6 +37,9 @@ class FakeNotifications implements NotificationService {
 
   @override
   Future<void> sendTest() async {}
+
+  @override
+  Future<void> openSettings() async {}
 }
 
 void main() {
@@ -361,5 +367,22 @@ void main() {
       await db.close();
       await dir.delete(recursive: true);
     }
+  });
+
+  test('resolveLocalTimezone handles valid IANA zones and falls back cleanly', () {
+    tzdata.initializeTimeZones();
+    expect(resolveLocalTimezone('Asia/Manila').name, 'Asia/Manila');
+    final fallback = resolveLocalTimezone(
+      'Invalid/DeviceZone',
+      fallbackOffsetMs: const Duration(hours: 8).inMilliseconds,
+    );
+    expect(
+      fallback.currentTimeZone.offset,
+      const Duration(hours: 8),
+    );
+    expect(
+      resolveLocalTimezone('Invalid/Zone', fallbackOffsetMs: 123456789).name,
+      tz.UTC.name,
+    );
   });
 }

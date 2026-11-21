@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 
-import 'batch_details_screen.dart';
 import 'data/inventory_database.dart';
 import 'domain/batch.dart';
+import 'domain/dashboard_summary.dart';
 import 'domain/inventory_report.dart';
+import 'domain/waste_query.dart';
+import 'batch_details_screen.dart';
+import 'widgets/dashboard/dashboard_hero_card.dart';
+import 'widgets/dashboard/dashboard_stat_grid.dart';
+import 'widgets/dashboard/date_attention_card.dart';
+import 'widgets/dashboard/top_waste_reasons_card.dart';
+import 'widgets/dashboard/unit_breakdown_card.dart';
+import 'widgets/local_day_scope.dart';
+import 'widgets/waste/waste_entry_card.dart';
+import 'widgets/waste/waste_filters_bar.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({
@@ -22,11 +32,38 @@ class _ReportScreenState extends State<ReportScreen> {
   bool _loading = true;
   bool _failed = false;
 
+  final _search = TextEditingController();
+  String _unit = 'all';
+  String _reason = 'all';
+  WasteDateRange _dateRange = WasteDateRange.allTime;
+  WasteSort _sort = WasteSort.newest;
+
+  bool get _hasWasteFilters =>
+      _search.text.isNotEmpty ||
+      _unit != 'all' ||
+      _reason != 'all' ||
+      _dateRange != WasteDateRange.allTime ||
+      _sort != WasteSort.newest;
+
   @override
   void initState() {
     super.initState();
     _load();
   }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _resetWasteFilters() => setState(() {
+    _search.clear();
+    _unit = 'all';
+    _reason = 'all';
+    _dateRange = WasteDateRange.allTime;
+    _sort = WasteSort.newest;
+  });
 
   Future<void> _load() async {
     setState(() {
@@ -53,98 +90,163 @@ class _ReportScreenState extends State<ReportScreen> {
     if (mounted) await _load();
   }
 
-  Widget _stat(String label, int value, String help, {double width = 190}) =>
-      SizedBox(
-        width: width,
-        child: Tooltip(
-          message: help,
-          triggerMode: TooltipTriggerMode.tap,
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+  List<Widget> _buildDashboard(BuildContext context) {
+    final report = _report!;
+    final summary = DashboardSummary.fromReport(
+      report,
+      LocalDayScope.maybeOf(context),
+    );
+    return [
+      DashboardHeroCard(report: report, summary: summary),
+      const SizedBox(height: 14),
+      DashboardStatGrid(report: report),
+      const SizedBox(height: 14),
+      DateAttentionCard(
+        summary: summary,
+        activeBatches: report.activeBatches,
+      ),
+      const SizedBox(height: 20),
+      Text(
+        'Quantities by unit',
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      const Text(
+        'Pieces, grams (g), and millilitres (mL) are counted separately.',
+      ),
+      const SizedBox(height: 6),
+      UnitBreakdownCard(report: report),
+      if (summary.topReasons.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        TopWasteReasonsCard(
+          reasons: summary.topReasons,
+          totalDisposals: report.disposals.length,
+        ),
+      ],
+      const SizedBox(height: 16),
+      if (report.batches.isEmpty)
+        const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: Text(
+            'No groceries yet. Add a batch from Inventory to get started.',
+          ),
+        ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: FilledButton.icon(
+          onPressed: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    ReportScreen(database: widget.database, wasteLog: true),
+              ),
+            );
+            if (mounted) await _load();
+          },
+          icon: const Icon(Icons.receipt_long_outlined),
+          label: const Text('Open waste log'),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildWasteLog(BuildContext context) {
+    final report = _report!;
+    final now = LocalDayScope.maybeOf(context);
+    final reasons = distinctWasteReasons(report.disposals);
+    final visible = queryWasteLog(
+      report.disposals,
+      now,
+      search: _search.text,
+      unit: _unit == 'all' ? null : _unit,
+      reason: _reason == 'all' ? null : _reason,
+      dateRange: _dateRange,
+      sort: _sort,
+    );
+    final filteredTotals = wasteTotalsByUnit(visible);
+
+    return [
+      Text(
+        '${report.disposals.length} disposal events',
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      const SizedBox(height: 12),
+      if (report.disposals.isEmpty)
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'No recorded waste. Food you discard from Inventory will appear here.',
+            ),
+          ),
+        )
+      else ...[
+        WasteFiltersBar(
+          searchController: _search,
+          unit: _unit,
+          reason: _reason,
+          reasons: reasons,
+          dateRange: _dateRange,
+          sort: _sort,
+          hasFilters: _hasWasteFilters,
+          onSearchChanged: (_) => setState(() {}),
+          onClearSearch: () {
+            _search.clear();
+            setState(() {});
+          },
+          onUnitChanged: (v) => setState(() => _unit = v),
+          onReasonChanged: (v) => setState(() => _reason = v),
+          onDateRangeChanged: (v) => setState(() => _dateRange = v),
+          onSortChanged: (v) => setState(() => _sort = v),
+          onReset: _resetWasteFilters,
+        ),
+        if (_hasWasteFilters) ...[
+          Text(
+            'Showing ${visible.length} of ${report.disposals.length} disposal events',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (visible.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 6),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
                 children: [
-                  Text(
-                    '$value',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  Text(label),
+                  for (final unit in BatchDraft.units)
+                    if ((filteredTotals[unit] ?? 0) > 0)
+                      Chip(
+                        label: Text(
+                          'Filtered: ${quantityLabel(filteredTotals[unit]!, unit)}',
+                        ),
+                      ),
                 ],
               ),
             ),
-          ),
-        ),
-      );
-
-  Widget _quantities() {
-    final remaining = _report!.remainingByUnit;
-    final waste = _report!.disposedByUnit;
-    Widget row(
-      String unit,
-      String stock,
-      String disposed, {
-      bool heading = false,
-    }) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: DefaultTextStyle.merge(
-        style: TextStyle(
-          fontWeight: heading ? FontWeight.bold : FontWeight.normal,
-        ),
-        child: Row(
-          children: [
-            Expanded(flex: 2, child: Text(unit)),
-            Expanded(flex: 3, child: Text(stock, textAlign: TextAlign.end)),
-            Expanded(flex: 3, child: Text(disposed, textAlign: TextAlign.end)),
-          ],
-        ),
-      ),
-    );
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            row('Unit', 'Remaining', 'Discarded', heading: true),
-            const Divider(),
-            for (final unit in BatchDraft.units)
-              row(unit, '${remaining[unit]}', '${waste[unit]}'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _wasteEntry(WasteEntry entry) {
-    final local = entry.createdAt.toLocal();
-    final locale = MaterialLocalizations.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(entry.food, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text('Discarded ${quantityLabel(entry.quantity, entry.unit)}'),
-            Text('Reason: ${entry.reason}'),
-            Text(
-              '${locale.formatMediumDate(local)} · ${locale.formatTimeOfDay(TimeOfDay.fromDateTime(local))}',
-            ),
-            Text('Batch #${entry.batchId} · Entry #${entry.id}'),
-            const SizedBox(height: 8),
-            Tooltip(
-              message: 'Open this batch to review history or undo a mistaken disposal.',
-              child: TextButton.icon(
-                onPressed: () => _openBatch(entry.batchId),
-                icon: const Icon(Icons.history),
-                label: const Text('View batch history'),
+        ],
+        const SizedBox(height: 6),
+        if (visible.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const Text('No waste entries match your search and filters.'),
+                  TextButton(
+                    onPressed: _resetWasteFilters,
+                    child: const Text('Reset filters'),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
+          )
+        else
+          ...visible.map(
+            (entry) => WasteEntryCard(
+              entry: entry,
+              onOpenBatch: () => _openBatch(entry.batchId),
+            ),
+          ),
+      ],
+    ];
   }
 
   @override
@@ -193,93 +295,10 @@ class _ReportScreenState extends State<ReportScreen> {
                     'All time · Only recorded disposals count as waste. Undone entries are excluded.',
                   ),
                   const SizedBox(height: 20),
-                  if (!widget.wasteLog) ...[
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final width = constraints.maxWidth >= 700
-                            ? (constraints.maxWidth - 24) / 4
-                            : (constraints.maxWidth - 8) / 2;
-                        return Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _stat(
-                              'Total batches',
-                              _report!.batches.length,
-                              'All saved batches, including those used up.',
-                              width: width,
-                            ),
-                            _stat(
-                              'In stock',
-                              _report!.activeBatches,
-                              'Batches with food remaining.',
-                              width: width,
-                            ),
-                            _stat(
-                              'Used up',
-                              _report!.depletedBatches,
-                              'Empty batches with saved history.',
-                              width: width,
-                            ),
-                            _stat(
-                              'Disposals',
-                              _report!.disposals.length,
-                              'Recorded waste that have not been undone.',
-                              width: width,
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Quantities by unit',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const Text(
-                      'Pieces, grams (g), and millilitres (mL) are counted separately.',
-                    ),
-                    _quantities(),
-                    const SizedBox(height: 16),
-                    if (_report!.batches.isEmpty)
-                      const Text(
-                        'No groceries yet. Add a batch from Inventory to get started.',
-                      ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: FilledButton.icon(
-                        onPressed: () async {
-                          await Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => ReportScreen(
-                                database: widget.database,
-                                wasteLog: true,
-                              ),
-                            ),
-                          );
-                          if (mounted) await _load();
-                        },
-                        icon: const Icon(Icons.receipt_long_outlined),
-                        label: const Text('Open waste log'),
-                      ),
-                    ),
-                  ] else ...[
-                    Text(
-                      '${_report!.disposals.length} disposal events',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    if (_report!.disposals.isEmpty)
-                      const Card(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text(
-                            'No recorded waste. Food you discard from Inventory will appear here.',
-                          ),
-                        ),
-                      ),
-                    ..._report!.disposals.map(_wasteEntry),
-                  ],
+                  if (!widget.wasteLog)
+                    ..._buildDashboard(context)
+                  else
+                    ..._buildWasteLog(context),
                 ],
               ),
             ),

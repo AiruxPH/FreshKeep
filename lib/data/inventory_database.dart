@@ -38,7 +38,7 @@ class InventoryDatabase extends GeneratedDatabase {
             ),
       );
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
   @override
@@ -66,6 +66,7 @@ class InventoryDatabase extends GeneratedDatabase {
       await _createReminderSettings();
       await _createBatchEdits();
       await _createBatchPhotos();
+      await _createAppPreferences();
     },
     onUpgrade: (_, from, to) async {
       await transaction(() async {
@@ -107,9 +108,30 @@ class InventoryDatabase extends GeneratedDatabase {
             );
           }
         }
+        if (from < 8) {
+          await _createAppPreferences();
+        }
       });
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
+  );
+
+  Future<void> _createAppPreferences() => customStatement(
+    '''CREATE TABLE IF NOT EXISTS app_preferences (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )''',
+  );
+
+  Future<bool> hasCompletedOnboarding() async {
+    final rows = await customSelect(
+      "SELECT value FROM app_preferences WHERE key = 'onboarding_completed'",
+    ).get();
+    return rows.isNotEmpty && rows.single.read<String>('value') == '1';
+  }
+
+  Future<void> markOnboardingCompleted() => customStatement(
+    "INSERT OR REPLACE INTO app_preferences(key, value) VALUES('onboarding_completed', '1')",
   );
 
   Future<void> _createBatchPhotos() =>

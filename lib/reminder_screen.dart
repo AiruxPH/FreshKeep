@@ -94,12 +94,13 @@ class _ReminderScreenState extends State<ReminderScreen> {
           message: 'Test notification requested. Check your device.',
         );
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         showFreshKeepToast(
           context,
-          message:
-              'Could not send a test. Check Android notification permissions.',
+          message: error is StateError
+              ? error.message
+              : 'Could not send a test notification. Check Android notification settings and try again.',
         );
       }
     } finally {
@@ -210,6 +211,16 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         OutlinedButton(
                           onPressed: _saving ? null : _test,
                           child: const Text('Send test notification'),
+                        ),
+                      if (_controller.service.supported &&
+                          (_controller.failed ||
+                              _controller.status.contains('blocked')))
+                        OutlinedButton.icon(
+                          onPressed: _saving
+                              ? null
+                              : () => _controller.service.openSettings(),
+                          icon: const Icon(Icons.settings_outlined),
+                          label: const Text('Open notification settings'),
                         ),
                     ],
                   ),

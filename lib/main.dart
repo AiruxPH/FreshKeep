@@ -1,12 +1,12 @@
+import 'data/inventory_database.dart';
 import 'package:flutter/material.dart';
 
-import 'data/inventory_database.dart';
 import 'app_shell.dart';
 import 'intro/freshkeep_entry_gate.dart';
-import 'widgets/local_day_scope.dart';
-import 'reminders/reminder_controller.dart';
 import 'reminders/notification_service.dart';
+import 'reminders/reminder_controller.dart';
 import 'reminders/reminder_lifecycle.dart';
+import 'widgets/local_day_scope.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +15,8 @@ void main() {
     FreshKeepApp(
       database: database,
       reminders: ReminderController(database, createNotificationService()),
-      showIntro: true,
+      showSplash: true,
+      showOnboardingIfNeeded: true,
     ),
   );
 }
@@ -25,11 +26,15 @@ class FreshKeepApp extends StatelessWidget {
     super.key,
     required this.database,
     this.reminders,
-    this.showIntro = false,
+    this.showSplash = false,
+    this.showOnboardingIfNeeded = false,
+    this.splashDuration = const Duration(milliseconds: 1100),
   });
   final InventoryDatabase database;
   final ReminderController? reminders;
-  final bool showIntro;
+  final bool showSplash;
+  final bool showOnboardingIfNeeded;
+  final Duration splashDuration;
   @override
   Widget build(BuildContext context) => LocalDayScope(
     child: ReminderLifecycle(
@@ -93,7 +98,10 @@ class FreshKeepApp extends StatelessWidget {
           useMaterial3: true,
         ),
         home: FreshKeepEntryGate(
-          showIntro: showIntro,
+          database: database,
+          showSplash: showSplash,
+          showOnboardingIfNeeded: showOnboardingIfNeeded,
+          splashDuration: splashDuration,
           child: AppShell(database: database, reminders: reminders),
         ),
       ),

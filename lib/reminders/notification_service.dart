@@ -5,6 +5,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../domain/reminder.dart';
+import 'resolve_local_timezone.dart';
 
 abstract class NotificationService {
   bool get supported;
@@ -14,6 +15,7 @@ abstract class NotificationService {
     bool requestPermission = false,
   });
   Future<void> sendTest();
+  Future<void> openSettings();
 }
 
 class PreviewNotifications implements NotificationService {
@@ -29,6 +31,8 @@ class PreviewNotifications implements NotificationService {
   @override
   Future<void> sendTest() async =>
       throw UnsupportedError('Android notification test only.');
+  @override
+  Future<void> openSettings() async {}
 }
 
 NotificationService createNotificationService() =>
@@ -46,8 +50,9 @@ class AndroidNotifications implements NotificationService {
       'freshkeep_dates',
       'Food date reminders',
       channelDescription: 'Reminders to review recorded printed food dates.',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+      icon: 'ic_stat_freshkeep',
+      importance: Importance.high,
+      priority: Priority.high,
     ),
   );
 
@@ -76,12 +81,16 @@ class AndroidNotifications implements NotificationService {
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >()!;
-    if (requestPermission) await android.requestNotificationsPermission();
-    if (await android.areNotificationsEnabled() != true) {
+    var notificationsEnabled = await android.areNotificationsEnabled() == true;
+    if (!notificationsEnabled && requestPermission) {
+      await android.requestNotificationsPermission();
+      notificationsEnabled = await android.areNotificationsEnabled() == true;
+    }
+    if (!notificationsEnabled) {
       return 'Settings saved, but Android notifications are blocked. Allow notifications in Android settings, then resync.';
     }
     final zone = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(zone.identifier));
+    tz.setLocalLocation(resolveLocalTimezone(zone.identifier));
     try {
       for (final reminder in plan) {
         final at = tz.TZDateTime.from(reminder.at, tz.local);
@@ -112,14 +121,30 @@ class AndroidNotifications implements NotificationService {
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >()!;
-    if (await android.requestNotificationsPermission() != true) {
-      throw StateError('Notification permission was not granted.');
+    var enabled = await android.areNotificationsEnabled() == true;
+    if (!enabled) {
+      await android.requestNotificationsPermission();
+      enabled = await android.areNotificationsEnabled() == true;
+    }
+    if (!enabled) {
+      throw StateError('Notifications are disabled in Android settings.');
     }
     await _plugin.show(
       id: 2147483640,
       title: 'FreshKeep test reminder',
-      body: 'Notifications are available. Scheduled delivery still needs a device check.',
+      body:
+          'Notifications are available. Scheduled delivery still needs a device check.',
       notificationDetails: _details,
     );
+  }
+
+  @override
+  Future<void> openSettings() async {
+    await _initialize();
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.openAppNotificationSettings();
   }
 }

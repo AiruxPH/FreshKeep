@@ -15,6 +15,12 @@ class LocalDayScope extends StatefulWidget {
   static DateTime of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_LocalDay>()!.day;
 
+  /// Returns the shared local clock when mounted under [LocalDayScope], or
+  /// [DateTime.now] when rendered standalone.
+  static DateTime maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_LocalDay>()?.day ??
+      DateTime.now().toLocal();
+
   @override
   State<LocalDayScope> createState() => _LocalDayScopeState();
 }
