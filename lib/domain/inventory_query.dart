@@ -1,5 +1,6 @@
 import 'batch.dart';
 import 'date_status.dart';
+import 'guidance/resolve_effective_date.dart';
 
 enum StockFilter { all, active, depleted }
 
@@ -22,14 +23,11 @@ List<InventoryBatch> queryInventory(
   final result = batches.where((batch) {
     if (!words.every(batch.draft.name.toLowerCase().contains)) return false;
     if (storage != null && batch.draft.storage != storage) return false;
-    if (status != null &&
-        dateStatus(
-              batch.draft.printedDate,
-              now,
-              time: batch.draft.printedTime,
-            ) !=
-            status) {
-      return false;
+    if (status != null) {
+      final effective = resolveEffectiveDate(batch.draft);
+      if (dateStatus(effective.date, now, time: effective.time) != status) {
+        return false;
+      }
     }
     if (stock == StockFilter.active && batch.depleted) return false;
     if (stock == StockFilter.depleted && !batch.depleted) return false;
@@ -38,14 +36,16 @@ List<InventoryBatch> queryInventory(
   result.sort((a, b) {
     var comparison = 0;
     if (sort == InventorySort.soonestDate) {
-      final first = a.draft.printedDate, second = b.draft.printedDate;
+      final firstEff = resolveEffectiveDate(a.draft);
+      final secondEff = resolveEffectiveDate(b.draft);
+      final first = firstEff.date, second = secondEff.date;
       comparison = first == null
           ? (second == null ? 0 : 1)
           : second == null
           ? -1
           : first.compareTo(second);
       if (comparison == 0 && first != null) {
-        final t1 = a.draft.printedTime, t2 = b.draft.printedTime;
+        final t1 = firstEff.time, t2 = secondEff.time;
         comparison = t1 == null
             ? (t2 == null ? 0 : 1)
             : t2 == null

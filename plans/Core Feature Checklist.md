@@ -118,6 +118,14 @@ Six added automated checks cover photo validation/immutability, persistence/migr
 
 Executed 2026-11-21: all 76 automated tests passed in the serialized full suite (`flutter test -j 1`) and `flutter analyze` passed with no issues. Added validation, `hoursLeft`/countdown widget, timed reminder, and v5→v6 migration tests, and updated legacy v1–v4 migration fixtures.
 
+## Milestone 13 — camera capture, launcher icon & calculated guidance dates
+
+- R47: Provide direct camera capture (`Take photo`) alongside gallery picking in entry/edit photo controls, sharing 5 MB size checks, image-codec readability verification, safe cancellation/errors, and Android `retrieveLostData()` recovery.
+- R48: Bundle a custom FreshKeep botanical leaf-and-check launcher icon across Android legacy/adaptive mipmaps (`mipmap-anydpi-v26`) and web favicon/manifest icons.
+- R49: Calculate optional suggested review dates from cited catalog rules only after explicit rule, storage-match, starting-event, and anchor-date confirmation; persist via non-destructive v6→v7 migration with audit history, keep printed dates higher priority, and feed suggested dates into status/filtering/reminders without creating stock or waste events.
+
+Executed 2026-11-21: full `flutter analyze` and `flutter test -j 1` regression passed with the new camera-capture and calculated-guidance test coverage.
+
 ## Remaining core completion work
 
-Priority 1 (Android debug build, physical-phone startup, core/photo/notification acceptance) is complete. Remaining Priority 2 tasks are tracked in `plans/Remaining Work and Recommendations.md` and `plans/Requirement Traceability and Evaluation.md`: timing sheet, user evaluation/questionnaire, release signing/artifact verification, and final submission write-up. Calculated guidance dates and image recognition remain separate/unconfirmed scope.
+Priority 1 (Android debug build, physical-phone startup, core/photo/notification acceptance) is complete. Remaining Priority 2 tasks are tracked in `plans/Remaining Work and Recommendations.md` and `plans/Requirement Traceability and Evaluation.md`: re-checking R45–R49 on physical device, timing sheet, user evaluation/questionnaire, release signing/artifact verification, and final submission write-up. Image-based food/date recognition remains separate/on hold.

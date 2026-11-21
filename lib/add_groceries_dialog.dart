@@ -12,9 +12,11 @@ class AddGroceriesScreen extends StatefulWidget {
     super.key,
     required this.database,
     this.pickPhoto = pickFoodPhoto,
+    this.takePhoto = takeFoodPhoto,
   });
   final InventoryDatabase database;
   final PickFoodPhoto pickPhoto;
+  final PickFoodPhoto takePhoto;
   @override
   State<AddGroceriesScreen> createState() => _AddGroceriesScreenState();
 }
@@ -62,6 +64,19 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
   void initState() {
     super.initState();
     _loadNames();
+    if (widget.pickPhoto == pickFoodPhoto && widget.takePhoto == takeFoodPhoto) {
+      _recoverLost();
+    }
+  }
+
+  Future<void> _recoverLost() async {
+    final recovered = await recoverLostPhoto();
+    if (recovered != null &&
+        mounted &&
+        _rows.isNotEmpty &&
+        _rows.first.photo == null) {
+      setState(() => _rows.first.photo = recovered);
+    }
   }
 
   Future<void> _loadNames() async {
@@ -205,6 +220,7 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
             photo: row.photo,
             enabled: !_saving,
             pick: widget.pickPhoto,
+            capture: widget.takePhoto,
             onChanged: (photo) => setState(() => row.photo = photo),
           ),
           const SizedBox(height: 12),

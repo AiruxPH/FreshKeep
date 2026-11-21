@@ -1,4 +1,5 @@
 import 'batch.dart';
+import 'guidance/resolve_effective_date.dart';
 
 class ReminderSettings {
   ReminderSettings({
@@ -28,20 +29,23 @@ class PlannedReminder {
     required this.food,
     required this.printedDate,
     required this.at,
+    this.dateSource = 'printed',
   });
   final int id;
   final int batchId;
   final String food;
   final String printedDate;
   final DateTime at;
+  final String dateSource;
 }
 
 /// Produce future one-off alerts, not repeating alarms that outlive a batch.
 ///
-/// When a batch has a [BatchDraft.printedTime], the alert for the **expiry day
-/// itself** (lead == 0) fires at the exact printed time instead of the user's
-/// daily reminder time. Lead-day alerts (lead > 0) always use the user's chosen
-/// [ReminderSettings.hour] / [ReminderSettings.minute].
+/// Uses each active batch's effective date (printed packaging date first,
+/// falling back to a confirmed calculated guidance suggested date).
+/// When an effective printed date has a [BatchDraft.printedTime], the expiry-day
+/// alert (`lead == 0`) fires at that exact time; lead-day alerts always use
+/// [ReminderSettings.hour] and [ReminderSettings.minute].
 List<PlannedReminder> planReminders(
   List<InventoryBatch> batches,
   ReminderSettings settings,
@@ -49,15 +53,17 @@ List<PlannedReminder> planReminders(
 ) {
   final plan = <PlannedReminder>[];
   for (final batch in batches) {
-    if (batch.depleted || batch.draft.printedDate == null) continue;
-    final date = DateTime.parse(batch.draft.printedDate!);
-    final printedTime = batch.draft.printedTime;
+    if (batch.depleted) continue;
+    final effective = resolveEffectiveDate(batch.draft);
+    if (effective.date == null) continue;
+    final date = DateTime.parse(effective.date!);
+    final printedTime = effective.time;
 
     for (var lead = 0; lead <= settings.leadDays; lead++) {
       // For the expiry day (lead==0) use the printed time when available;
       // for lead days always use the user's chosen reminder time.
-      int alertHour = settings.hour;
-      int alertMinute = settings.minute;
+      var alertHour = settings.hour;
+      var alertMinute = settings.minute;
       if (lead == 0 && printedTime != null) {
         final parts = printedTime.split(':');
         final h = parts.length == 2 ? int.tryParse(parts[0]) : null;
@@ -83,8 +89,9 @@ List<PlannedReminder> planReminders(
             id: id,
             batchId: batch.id,
             food: batch.draft.name,
-            printedDate: batch.draft.printedDate!,
+            printedDate: effective.date!,
             at: at,
+            dateSource: effective.source.name,
           ),
         );
       }

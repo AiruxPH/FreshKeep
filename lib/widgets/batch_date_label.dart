@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/date_status.dart';
+import '../domain/guidance/guidance_selection.dart';
 import 'local_day_scope.dart';
 
 class BatchDateLabel extends StatelessWidget {
@@ -8,6 +9,7 @@ class BatchDateLabel extends StatelessWidget {
     super.key,
     required this.printedDate,
     this.printedTime,
+    this.guidance,
   });
   final String? printedDate;
 
@@ -15,10 +17,17 @@ class BatchDateLabel extends StatelessWidget {
   /// countdown chip and refines the status within the same calendar day.
   final String? printedTime;
 
+  /// Optional calculated storage-guidance dates. Only used when [printedDate]
+  /// is null; printed packaging dates always take priority.
+  final BatchGuidance? guidance;
+
   @override
   Widget build(BuildContext context) {
     final now = LocalDayScope.of(context);
-    final status = dateStatus(printedDate, now, time: printedTime);
+    final effectiveDate = printedDate ?? guidance?.suggestedDate;
+    final effectiveTime = printedDate != null ? printedTime : null;
+    final isSuggested = printedDate == null && guidance != null;
+    final status = dateStatus(effectiveDate, now, time: effectiveTime);
     final (icon, background, foreground) = switch (status) {
       DateStatus.later => (
         Icons.event_outlined,
@@ -53,20 +62,27 @@ class BatchDateLabel extends StatelessWidget {
     };
 
     // Build the countdown label for hoursLeft status.
-    String chipLabel = status.label;
+    var chipLabel = status.label;
     if (status == DateStatus.hoursLeft &&
-        printedDate != null &&
-        printedTime != null) {
-      final countdown = hoursLeftLabel(printedDate!, printedTime!, now);
+        effectiveDate != null &&
+        effectiveTime != null) {
+      final countdown = hoursLeftLabel(effectiveDate, effectiveTime, now);
       if (countdown != null) chipLabel = countdown;
     }
 
-    // Show full datetime when time is present, otherwise date only.
-    final dateDisplay = printedDate == null
-        ? null
-        : printedTime != null
-            ? 'Printed date · $printedDate $printedTime'
-            : 'Printed date · $printedDate';
+    // Show full datetime when time is present, otherwise date or suggested window.
+    final String? dateDisplay;
+    if (printedDate != null) {
+      dateDisplay = printedTime != null
+          ? 'Printed date · $printedDate $printedTime'
+          : 'Printed date · $printedDate';
+    } else if (guidance != null) {
+      dateDisplay = guidance!.hasRange
+          ? 'Suggested date · ${guidance!.suggestedDate} (to ${guidance!.suggestedEndDate})'
+          : 'Suggested date · ${guidance!.suggestedDate}';
+    } else {
+      dateDisplay = null;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,9 +92,11 @@ class BatchDateLabel extends StatelessWidget {
           triggerMode: TooltipTriggerMode.tap,
           message: status == DateStatus.unknown
               ? 'No printed date was entered. Unknown does not mean fresh or spoiled.'
+              : isSuggested
+              ? 'Calculated from saved storage guidance (${guidance!.anchorEvent} ${guidance!.anchorDate}). This is not a printed date or freshness guarantee. Passing it does not record waste.'
               : status == DateStatus.hoursLeft
-                  ? 'The printed time on the packaging. This label describes the printed datetime, not freshness.'
-                  : 'Compared with today on your device. This label describes the printed date, not freshness. Passing it does not record waste.',
+              ? 'The printed time on the packaging. This label describes the printed datetime, not freshness.'
+              : 'Compared with today on your device. This label describes the printed date, not freshness. Passing it does not record waste.',
           child: Chip(
             avatar: Icon(icon, size: 18, color: foreground),
             label: Text(chipLabel, style: TextStyle(color: foreground)),

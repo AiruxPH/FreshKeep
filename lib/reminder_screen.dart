@@ -126,7 +126,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'One reminder per batch each day in the lead window, through its printed-date day. Unknown dates, past dates and depleted batches are excluded.',
+                    'One reminder per batch each day in the lead window, through its printed or suggested guidance date. Unknown dates, past dates and depleted batches are excluded.',
                   ),
                   const SizedBox(height: 16),
                   if (!_controller.service.supported)
@@ -258,7 +258,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         leading: const Icon(Icons.notifications_none),
                         title: Text(reminder.food),
                         subtitle: Text(
-                          '${MaterialLocalizations.of(context).formatMediumDate(reminder.at)} · ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(reminder.at))}\nPrinted date: ${reminder.printedDate} · Batch #${reminder.batchId}',
+                          '${MaterialLocalizations.of(context).formatMediumDate(reminder.at)} · ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(reminder.at))}\n${reminder.dateSource == 'suggested' ? 'Suggested date (guidance)' : 'Printed date'}: ${reminder.printedDate} · Batch #${reminder.batchId}',
                         ),
                         isThreeLine: true,
                       ),

@@ -89,8 +89,9 @@ class AndroidNotifications implements NotificationService {
         await _plugin.zonedSchedule(
           id: reminder.id,
           title: 'Review ${reminder.food}',
-          body:
-              'Printed date: ${reminder.printedDate}. Review this batch in FreshKeep.',
+          body: reminder.dateSource == 'suggested'
+              ? 'Suggested date (guidance): ${reminder.printedDate}. Review this batch in FreshKeep.'
+              : 'Printed date: ${reminder.printedDate}. Review this batch in FreshKeep.',
           scheduledDate: at,
           notificationDetails: _details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

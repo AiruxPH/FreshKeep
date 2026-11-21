@@ -123,7 +123,25 @@ void main() {
       await db.customStatement(
         'ALTER TABLE batch_edits DROP COLUMN photo_change',
       );
+      await db.customStatement(
+        'ALTER TABLE batch_edits DROP COLUMN guidance_change',
+      );
       await db.customStatement('ALTER TABLE batches DROP COLUMN printed_time');
+      await db.customStatement(
+        'ALTER TABLE batches DROP COLUMN guidance_rule_id',
+      );
+      await db.customStatement(
+        'ALTER TABLE batches DROP COLUMN guidance_catalog_version',
+      );
+      await db.customStatement(
+        'ALTER TABLE batches DROP COLUMN guidance_anchor_event',
+      );
+      await db.customStatement(
+        'ALTER TABLE batches DROP COLUMN guidance_anchor_date',
+      );
+      await db.customStatement(
+        'ALTER TABLE batches DROP COLUMN suggested_date',
+      );
       await db.customStatement('PRAGMA user_version=4');
       await db.close();
       db = InventoryDatabase(NativeDatabase(file));
@@ -262,4 +280,79 @@ void main() {
       expect((await db.loadBatch(batch.id)).draft.photo, isNotNull);
     },
   );
+
+  testWidgets('camera capture supports capture, cancellation, failure and explicit edit save', (
+    tester,
+  ) async {
+    FoodPhoto? selected = photo();
+    var mode = 'cancel';
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => FoodPhotoEditor(
+              photo: selected,
+              onChanged: (value) => setState(() => selected = value),
+              capture: () async {
+                if (mode == 'error') throw StateError('Camera unavailable');
+                if (mode == 'capture') return photo();
+                return null;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Take photo'), findsOneWidget);
+    await tester.tap(find.text('Take photo'));
+    await tester.pumpAndSettle();
+    expect(selected, isNotNull);
+    mode = 'error';
+    await tester.tap(find.text('Take photo'));
+    await tester.pumpAndSettle();
+    expect(selected, isNotNull);
+    expect(
+      find.text(
+        'Could not take a photo. Check camera access or try choosing from gallery.',
+      ),
+      findsOneWidget,
+    );
+    selected = null;
+    mode = 'capture';
+    await tester.tap(find.text('Take photo'));
+    await tester.pumpAndSettle();
+    expect(selected, isNotNull);
+
+    final db = InventoryDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.addBatch(draft());
+    final batch = (await db.loadBatches()).single;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showDialog<bool>(
+                context: context,
+                builder: (_) => EditBatchDialog(
+                  database: db,
+                  batch: batch,
+                  takePhoto: () async => photo(),
+                ),
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Take photo'));
+    await tester.pumpAndSettle();
+    expect((await db.loadBatch(batch.id)).draft.photo, isNull);
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    expect((await db.loadBatch(batch.id)).draft.photo, isNotNull);
+  });
 }

@@ -1,29 +1,17 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../domain/food_photo.dart';
+import 'photo_picker/pick_food_photo_from_source.dart';
+import 'photo_picker/take_food_photo.dart';
+
+export 'photo_picker/recover_lost_photo.dart';
+export 'photo_picker/take_food_photo.dart';
 
 typedef PickFoodPhoto = Future<FoodPhoto?> Function();
 
-Future<FoodPhoto?> pickFoodPhoto() async {
-  final file = await ImagePicker().pickImage(source: ImageSource.gallery);
-  if (file == null) return null;
-  if (await file.length() > FoodPhoto.maxBytes) {
-    throw const FormatException('Choose a photo up to 5 MB.');
-  }
-  final photo = FoodPhoto(await file.readAsBytes());
-  // Reject unreadable files before they become part of a saved grocery.
-  final codec = await ui.instantiateImageCodec(photo.bytes, targetWidth: 128);
-  try {
-    final frame = await codec.getNextFrame();
-    frame.image.dispose();
-  } finally {
-    codec.dispose();
-  }
-  return photo;
-}
+Future<FoodPhoto?> pickFoodPhoto() =>
+    pickFoodPhotoFromSource(ImageSource.gallery);
 
 class FoodPhotoView extends StatelessWidget {
   const FoodPhotoView({
@@ -65,25 +53,27 @@ class FoodPhotoEditor extends StatefulWidget {
     required this.onChanged,
     this.enabled = true,
     this.pick = pickFoodPhoto,
+    this.capture = takeFoodPhoto,
   });
   final FoodPhoto? photo;
   final ValueChanged<FoodPhoto?> onChanged;
   final bool enabled;
   final PickFoodPhoto pick;
+  final PickFoodPhoto capture;
   @override
   State<FoodPhotoEditor> createState() => _FoodPhotoEditorState();
 }
 
 class _FoodPhotoEditorState extends State<FoodPhotoEditor> {
-  bool _picking = false;
+  String? _pickingSource;
   String? _error;
-  Future<void> _choose() async {
+  Future<void> _choose(PickFoodPhoto sourcePicker, String source) async {
     setState(() {
-      _picking = true;
+      _pickingSource = source;
       _error = null;
     });
     try {
-      final photo = await widget.pick();
+      final photo = await sourcePicker();
       if (mounted && widget.enabled && photo != null) widget.onChanged(photo);
     } catch (error) {
       assert(() {
@@ -94,60 +84,81 @@ class _FoodPhotoEditorState extends State<FoodPhotoEditor> {
         setState(
           () => _error = error is FormatException
               ? error.message.toString()
+              : source == 'camera'
+              ? 'Could not take a photo. Check camera access or try choosing from gallery.'
               : 'Could not open this photo. Try a JPG, PNG or WebP image.',
         );
       }
     } finally {
-      if (mounted) setState(() => _picking = false);
+      if (mounted) setState(() => _pickingSource = null);
     }
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      if (widget.photo != null)
-        FoodPhotoView(
-          photo: widget.photo!,
-          label: 'Selected food photo',
-          size: 96,
-        ),
-      Wrap(
-        spacing: 8,
-        children: [
-          Tooltip(
-            message: 'Choose a photo for display only. Food names and dates are still entered manually.',
-            child: TextButton.icon(
-              onPressed: widget.enabled && !_picking ? _choose : null,
-              icon: const Icon(Icons.add_photo_alternate_outlined),
-              label: Text(
-                _picking
-                    ? 'Opening photo…'
-                    : widget.photo == null
-                    ? 'Add photo (optional)'
-                    : 'Change photo',
+  Widget build(BuildContext context) {
+    final busy = _pickingSource != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.photo != null)
+          FoodPhotoView(
+            photo: widget.photo!,
+            label: 'Selected food photo',
+            size: 96,
+          ),
+        Wrap(
+          spacing: 8,
+          children: [
+            Tooltip(
+              message:
+                  'Choose a photo for display only. Food names and dates are still entered manually.',
+              child: TextButton.icon(
+                onPressed: widget.enabled && !busy
+                    ? () => _choose(widget.pick, 'gallery')
+                    : null,
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: Text(
+                  _pickingSource == 'gallery'
+                      ? 'Opening photo…'
+                      : widget.photo == null
+                      ? 'Add photo (optional)'
+                      : 'Change photo',
+                ),
               ),
             ),
-          ),
-          if (widget.photo != null)
-            TextButton(
-              onPressed: widget.enabled && !_picking
-                  ? () {
-                      setState(() => _error = null);
-                      widget.onChanged(null);
-                    }
-                  : null,
-              child: const Text('Remove photo'),
+            Tooltip(
+              message:
+                  'Take a photo for display only. Food names and dates are still entered manually.',
+              child: TextButton.icon(
+                onPressed: widget.enabled && !busy
+                    ? () => _choose(widget.capture, 'camera')
+                    : null,
+                icon: const Icon(Icons.photo_camera_outlined),
+                label: Text(
+                  _pickingSource == 'camera' ? 'Opening camera…' : 'Take photo',
+                ),
+              ),
             ),
-        ],
-      ),
-      if (widget.photo != null || _error != null)
-        const Text('Display only · Up to 5 MB · Saved on this device'),
-      if (_error != null)
-        Text(
-          _error!,
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
+            if (widget.photo != null)
+              TextButton(
+                onPressed: widget.enabled && !busy
+                    ? () {
+                        setState(() => _error = null);
+                        widget.onChanged(null);
+                      }
+                    : null,
+                child: const Text('Remove photo'),
+              ),
+          ],
         ),
-    ],
-  );
+        if (widget.photo != null || _error != null)
+          const Text('Display only · Up to 5 MB · Saved on this device'),
+        if (_error != null)
+          Text(
+            _error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+      ],
+    );
+  }
 }

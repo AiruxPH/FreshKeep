@@ -6,6 +6,9 @@ class StorageGuidance {
     required this.condition,
     required this.storage,
     required this.duration,
+    required this.minDays,
+    required this.maxDays,
+    required this.defaultAnchorEvent,
     required this.sourceTitle,
     required this.sourceUrl,
     required this.sourceLocation,
@@ -16,11 +19,21 @@ class StorageGuidance {
   final String condition;
   final String storage;
   final String duration;
+  final int minDays;
+  final int maxDays;
+  final String defaultAnchorEvent;
   final String sourceTitle;
   final String sourceUrl;
   final String sourceLocation;
   static const reviewedOn = '2026-11-01';
   static const catalogVersion = '2026-11-01.1';
+  static const anchorEvents = [
+    'Purchased',
+    'Opened',
+    'Cooked',
+    'Refrigerated',
+    'Stored',
+  ];
 
   bool matches(String query) {
     final terms = query

@@ -156,6 +156,11 @@ void main() {
         await db.customStatement('DROP TABLE batch_edits');
         await db.customStatement('DROP TABLE batch_photos');
         await db.customStatement('ALTER TABLE batches DROP COLUMN printed_time');
+        await db.customStatement('ALTER TABLE batches DROP COLUMN guidance_rule_id');
+        await db.customStatement('ALTER TABLE batches DROP COLUMN guidance_catalog_version');
+        await db.customStatement('ALTER TABLE batches DROP COLUMN guidance_anchor_event');
+        await db.customStatement('ALTER TABLE batches DROP COLUMN guidance_anchor_date');
+        await db.customStatement('ALTER TABLE batches DROP COLUMN suggested_date');
         await db.customStatement('PRAGMA user_version=3');
         await db.close();
         db = InventoryDatabase(NativeDatabase(file));

@@ -2,12 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'data/guidance_catalog.dart';
+import 'data/inventory_database.dart';
+import 'domain/batch.dart';
+import 'domain/stock_event.dart';
 import 'domain/storage_guidance.dart';
+import 'widgets/guidance/apply_guidance_sheet.dart';
 
 class GuidanceScreen extends StatefulWidget {
-  const GuidanceScreen({super.key, this.foodName = '', this.storage});
+  const GuidanceScreen({
+    super.key,
+    this.foodName = '',
+    this.storage,
+    this.database,
+    this.batch,
+  });
   final String foodName;
   final String? storage;
+  final InventoryDatabase? database;
+  final InventoryBatch? batch;
   @override
   State<GuidanceScreen> createState() => _GuidanceScreenState();
 }
@@ -15,6 +27,8 @@ class GuidanceScreen extends StatefulWidget {
 class _GuidanceScreenState extends State<GuidanceScreen> {
   late final TextEditingController _search;
   String? _storage;
+  bool _saving = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,46 +68,148 @@ class _GuidanceScreenState extends State<GuidanceScreen> {
     }
   }
 
-  Widget _rule(StorageGuidance rule) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(rule.food, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(
-            '${rule.storage} · ${rule.duration}',
-            style: Theme.of(context).textTheme.titleMedium,
+  Future<void> _applyRule(StorageGuidance rule) async {
+    final batch = widget.batch;
+    final database = widget.database;
+    if (_saving || batch == null || database == null) return;
+    final currentGuidance = batch.draft.guidance;
+    final selection = await showApplyGuidanceSheet(
+      context,
+      rule: rule,
+      initial: currentGuidance != null && currentGuidance.ruleId == rule.id
+          ? currentGuidance
+          : null,
+    );
+    if (selection == null || !mounted) return;
+    setState(() => _saving = true);
+    try {
+      await database.editBatchDetails(
+        batch.id,
+        BatchDetailsDraft(
+          name: batch.draft.name,
+          storage: batch.draft.storage,
+          printedDate: batch.draft.printedDate,
+          printedTime: batch.draft.printedTime,
+        ),
+        expected: batch.draft,
+        updateGuidance: true,
+        guidance: selection,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is StockValidationException
+                  ? error.message
+                  : 'Could not save suggested date. Please try again.',
+            ),
           ),
-          Text('Applies to: ${rule.condition}'),
-          const SizedBox(height: 12),
-          Text('Source: ${rule.sourceTitle}'),
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            title: const Text('Source details'),
-            children: [
-              Text(rule.sourceLocation),
-              Text('Reviewed ${StorageGuidance.reviewedOn}'),
-              SelectableText(
-                rule.sourceUrl,
-                style: TextStyle(color: Theme.of(context).colorScheme.primary),
-              ),
-              TextButton.icon(
-                onPressed: () => _copySource(rule),
-                icon: const Icon(Icons.copy_outlined),
-                label: const Text('Copy citation'),
-              ),
-            ],
+        );
+      }
+    }
+  }
+
+  Future<void> _clearGuidance() async {
+    final batch = widget.batch;
+    final database = widget.database;
+    if (_saving || batch == null || database == null) return;
+    setState(() => _saving = true);
+    try {
+      await database.editBatchDetails(
+        batch.id,
+        BatchDetailsDraft(
+          name: batch.draft.name,
+          storage: batch.draft.storage,
+          printedDate: batch.draft.printedDate,
+          printedTime: batch.draft.printedTime,
+        ),
+        expected: batch.draft,
+        updateGuidance: true,
+        guidance: null,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is StockValidationException
+                  ? error.message
+                  : 'Could not clear suggested date. Please try again.',
+            ),
           ),
-        ],
+        );
+      }
+    }
+  }
+
+  Widget _rule(StorageGuidance rule) {
+    final batch = widget.batch;
+    final canSelect = batch != null && widget.database != null;
+    final matchesStorage = batch == null || rule.storage == batch.draft.storage;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(rule.food, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              '${rule.storage} · ${rule.duration}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            Text('Applies to: ${rule.condition}'),
+            const SizedBox(height: 12),
+            Text('Source: ${rule.sourceTitle}'),
+            if (canSelect)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: matchesStorage
+                    ? FilledButton.tonalIcon(
+                        onPressed: _saving ? null : () => _applyRule(rule),
+                        icon: const Icon(Icons.event_available_outlined),
+                        label: const Text('Use to calculate suggested date'),
+                      )
+                    : Text(
+                        'Matches ${rule.storage}, not this batch’s ${batch.draft.storage} storage.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+              ),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text('Source details'),
+              children: [
+                Text(rule.sourceLocation),
+                Text('Reviewed ${StorageGuidance.reviewedOn}'),
+                SelectableText(
+                  rule.sourceUrl,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => _copySource(rule),
+                  icon: const Icon(Icons.copy_outlined),
+                  label: const Text('Copy citation'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final rules = searchGuidance(_search.text, storage: _storage);
+    final activeGuidance = widget.batch?.draft.guidance;
     return Scaffold(
       appBar: AppBar(title: const Text('Storage guidance')),
       body: Center(
@@ -111,12 +227,26 @@ class _GuidanceScreenState extends State<GuidanceScreen> {
                 'Match the food, condition and storage before using a reference. These durations do not guarantee freshness or replace packaging instructions.',
               ),
               const SizedBox(height: 12),
-              const Card(
+              Card(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Reference only · No suggested date is set. The starting event and its date have not been recorded. Your printed dates and inventory stay unchanged.',
-                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: activeGuidance == null
+                      ? const Text(
+                          'Reference only · No suggested date is set. Confirm a matching rule and starting date to calculate one, or browse without changing your inventory.',
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Suggested date set: ${activeGuidance.suggestedDate} (${activeGuidance.anchorEvent} ${activeGuidance.anchorDate}). Printed dates still take priority.',
+                            ),
+                            if (widget.database != null)
+                              TextButton(
+                                onPressed: _saving ? null : _clearGuidance,
+                                child: const Text('Clear suggested date'),
+                              ),
+                          ],
+                        ),
                 ),
               ),
               const SizedBox(height: 16),

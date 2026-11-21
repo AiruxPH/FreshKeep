@@ -139,6 +139,11 @@ void main() {
         await db.customStatement('DROP TABLE batch_edits');
         await db.customStatement('DROP TABLE batch_photos');
         await db.customStatement('ALTER TABLE batches DROP COLUMN printed_time');
+        await db.customStatement('ALTER TABLE batches DROP COLUMN guidance_rule_id');
+        await db.customStatement('ALTER TABLE batches DROP COLUMN guidance_catalog_version');
+        await db.customStatement('ALTER TABLE batches DROP COLUMN guidance_anchor_event');
+        await db.customStatement('ALTER TABLE batches DROP COLUMN guidance_anchor_date');
+        await db.customStatement('ALTER TABLE batches DROP COLUMN suggested_date');
         await db.customStatement('PRAGMA user_version=2');
         await db.close();
         db = InventoryDatabase(NativeDatabase(file));
@@ -336,6 +341,9 @@ void main() {
       ''');
       await v5Db.customStatement(
         "INSERT INTO batches(name,starting_qty,unit,storage,printed_date,date_source,created_at) VALUES('Milk',2,'pieces','Fridge','2026-11-25','printed','2026-11-01T00:00:00Z')",
+      );
+      await v5Db.customStatement(
+        'ALTER TABLE batch_edits DROP COLUMN guidance_change',
       );
       await v5Db.customStatement('PRAGMA user_version = 5');
       await v5Db.close();

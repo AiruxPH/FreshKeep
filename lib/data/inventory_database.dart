@@ -5,6 +5,8 @@ import 'package:drift_flutter/drift_flutter.dart';
 
 import '../domain/batch.dart';
 import '../domain/food_photo.dart';
+import '../domain/guidance/find_guidance_rule.dart';
+import '../domain/guidance/guidance_selection.dart';
 import '../domain/stock_event.dart';
 import '../domain/inventory_report.dart';
 import '../domain/reminder.dart';
@@ -35,7 +37,7 @@ class InventoryDatabase extends GeneratedDatabase {
             ),
       );
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
   @override
@@ -51,6 +53,11 @@ class InventoryDatabase extends GeneratedDatabase {
       printed_date TEXT,
       date_source TEXT NOT NULL CHECK(date_source IN ('printed', 'unknown')),
       printed_time TEXT,
+      guidance_rule_id TEXT,
+      guidance_catalog_version TEXT,
+      guidance_anchor_event TEXT,
+      guidance_anchor_date TEXT,
+      suggested_date TEXT,
       created_at TEXT NOT NULL
     )
   ''');
@@ -76,6 +83,28 @@ class InventoryDatabase extends GeneratedDatabase {
           await customStatement(
             'ALTER TABLE batches ADD COLUMN printed_time TEXT',
           );
+        }
+        if (from < 7) {
+          await customStatement(
+            'ALTER TABLE batches ADD COLUMN guidance_rule_id TEXT',
+          );
+          await customStatement(
+            'ALTER TABLE batches ADD COLUMN guidance_catalog_version TEXT',
+          );
+          await customStatement(
+            'ALTER TABLE batches ADD COLUMN guidance_anchor_event TEXT',
+          );
+          await customStatement(
+            'ALTER TABLE batches ADD COLUMN guidance_anchor_date TEXT',
+          );
+          await customStatement(
+            'ALTER TABLE batches ADD COLUMN suggested_date TEXT',
+          );
+          if (from >= 4) {
+            await customStatement(
+              'ALTER TABLE batch_edits ADD COLUMN guidance_change TEXT',
+            );
+          }
         }
       });
     },
@@ -103,7 +132,7 @@ class InventoryDatabase extends GeneratedDatabase {
       '''CREATE TABLE batch_edits (
       id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id INTEGER NOT NULL REFERENCES batches(id),
       old_name TEXT NOT NULL, new_name TEXT NOT NULL, old_storage TEXT NOT NULL, new_storage TEXT NOT NULL,
-      old_date TEXT, new_date TEXT, created_at TEXT NOT NULL, photo_change TEXT)''',
+      old_date TEXT, new_date TEXT, created_at TEXT NOT NULL, photo_change TEXT, guidance_change TEXT)''',
     );
     await customStatement(
       'CREATE INDEX batch_edits_batch ON batch_edits(batch_id)',
@@ -122,6 +151,8 @@ class InventoryDatabase extends GeneratedDatabase {
     required BatchDraft expected,
     bool updatePhoto = false,
     FoodPhoto? photo,
+    bool updateGuidance = false,
+    BatchGuidance? guidance,
   }) => transaction(() async {
     final current = (await loadBatch(id)).draft;
     if (current.name != expected.name ||
@@ -140,10 +171,32 @@ class InventoryDatabase extends GeneratedDatabase {
         'The photo changed while this form was open. Close it and try again.',
       );
     }
+    final sameGuidance = current.guidance == null
+        ? expected.guidance == null
+        : current.guidance!.sameAs(expected.guidance);
+    if (updateGuidance && !sameGuidance) {
+      throw const StockValidationException(
+        'Storage guidance changed while this form was open. Close it and try again.',
+      );
+    }
+    final effectiveGuidance = updateGuidance ? guidance : current.guidance;
+    if (effectiveGuidance != null) {
+      final rule = findGuidanceRule(effectiveGuidance.ruleId);
+      if (rule != null && rule.storage != details.storage) {
+        throw StockValidationException(
+          'Saved storage guidance does not match ${details.storage}. Clear or update guidance first.',
+        );
+      }
+    }
     final changedPhoto =
         updatePhoto &&
         !(current.photo == null ? photo == null : current.photo!.sameAs(photo));
-    if (details.matches(current) && !changedPhoto) return;
+    final changedGuidance =
+        updateGuidance &&
+        !(current.guidance == null
+            ? guidance == null
+            : current.guidance!.sameAs(guidance));
+    if (details.matches(current) && !changedPhoto && !changedGuidance) return;
     final photoChange = !changedPhoto
         ? null
         : photo == null
@@ -151,21 +204,34 @@ class InventoryDatabase extends GeneratedDatabase {
         : current.photo == null
         ? 'Photo added'
         : 'Photo changed';
+    final guidanceChange = !changedGuidance
+        ? null
+        : guidance == null
+        ? 'Guidance cleared'
+        : current.guidance == null
+        ? 'Guidance applied: ${findGuidanceRule(guidance.ruleId)?.food ?? guidance.ruleId} (suggested ${guidance.suggestedDate})'
+        : 'Guidance updated: ${findGuidanceRule(guidance.ruleId)?.food ?? guidance.ruleId} (suggested ${guidance.suggestedDate})';
     if (changedPhoto) await _writePhoto(id, photo);
     await customStatement(
-      '''UPDATE batches SET name=?,storage=?,printed_date=?,date_source=?,printed_time=? WHERE id=?''',
+      '''UPDATE batches SET name=?,storage=?,printed_date=?,date_source=?,printed_time=?,
+        guidance_rule_id=?,guidance_catalog_version=?,guidance_anchor_event=?,guidance_anchor_date=?,suggested_date=? WHERE id=?''',
       [
         details.name,
         details.storage,
         details.printedDate,
         details.printedDate == null ? 'unknown' : 'printed',
         details.printedTime,
+        effectiveGuidance?.ruleId,
+        effectiveGuidance?.catalogVersion,
+        effectiveGuidance?.anchorEvent,
+        effectiveGuidance?.anchorDate,
+        effectiveGuidance?.suggestedDate,
         id,
       ],
     );
     await customStatement(
-      '''INSERT INTO batch_edits(batch_id,old_name,new_name,old_storage,new_storage,old_date,new_date,created_at,photo_change)
-      VALUES(?,?,?,?,?,?,?,?,?)''',
+      '''INSERT INTO batch_edits(batch_id,old_name,new_name,old_storage,new_storage,old_date,new_date,created_at,photo_change,guidance_change)
+      VALUES(?,?,?,?,?,?,?,?,?,?)''',
       [
         id,
         current.name,
@@ -176,6 +242,7 @@ class InventoryDatabase extends GeneratedDatabase {
         details.printedDate,
         DateTime.now().toUtc().toIso8601String(),
         photoChange,
+        guidanceChange,
       ],
     );
   }).then((_) => _changed());
@@ -190,6 +257,7 @@ class InventoryDatabase extends GeneratedDatabase {
           (row) => BatchEdit(
             id: row.read<int>('id'),
             photoChange: row.readNullable<String>('photo_change'),
+            guidanceChange: row.readNullable<String>('guidance_change'),
             before: BatchDetailsDraft(
               name: row.read<String>('old_name'),
               storage: row.read<String>('old_storage'),
@@ -270,25 +338,40 @@ class InventoryDatabase extends GeneratedDatabase {
   Future<List<InventoryBatch>> loadBatches() async {
     final rows = await customSelect('$_inventoryQuery ORDER BY b.id DESC')
         .get();
-    return rows
-        .map(
-          (row) => InventoryBatch(
-            id: row.read<int>('id'),
-            remaining: row.read<int>('remaining'),
-            draft: BatchDraft(
-              name: row.read<String>('name'),
-              quantity: row.read<int>('starting_qty'),
-              unit: row.read<String>('unit'),
-              storage: row.read<String>('storage'),
-              printedDate: row.readNullable<String>('printed_date'),
-              printedTime: row.readNullable<String>('printed_time'),
-              photo: row.readNullable<Uint8List>('photo_bytes') == null
-                  ? null
-                  : FoodPhoto(row.read<Uint8List>('photo_bytes')),
-            ),
-          ),
-        )
-        .toList();
+    return rows.map((row) {
+      final ruleId = row.readNullable<String>('guidance_rule_id');
+      final anchorDate = row.readNullable<String>('guidance_anchor_date');
+      final suggestedDate = row.readNullable<String>('suggested_date');
+      final guidance =
+          ruleId != null && anchorDate != null && suggestedDate != null
+          ? BatchGuidance.stored(
+              ruleId: ruleId,
+              catalogVersion:
+                  row.readNullable<String>('guidance_catalog_version') ??
+                  'unknown',
+              anchorEvent:
+                  row.readNullable<String>('guidance_anchor_event') ?? 'Stored',
+              anchorDate: anchorDate,
+              suggestedDate: suggestedDate,
+            )
+          : null;
+      return InventoryBatch(
+        id: row.read<int>('id'),
+        remaining: row.read<int>('remaining'),
+        draft: BatchDraft(
+          name: row.read<String>('name'),
+          quantity: row.read<int>('starting_qty'),
+          unit: row.read<String>('unit'),
+          storage: row.read<String>('storage'),
+          printedDate: row.readNullable<String>('printed_date'),
+          printedTime: row.readNullable<String>('printed_time'),
+          guidance: guidance,
+          photo: row.readNullable<Uint8List>('photo_bytes') == null
+              ? null
+              : FoodPhoto(row.read<Uint8List>('photo_bytes')),
+        ),
+      );
+    }).toList();
   }
 
   Future<InventoryBatch> loadBatch(int id) async =>
@@ -403,7 +486,9 @@ class InventoryDatabase extends GeneratedDatabase {
     await customStatement(
       '''
       INSERT INTO batches (name, starting_qty, unit, storage, printed_date,
-        date_source, printed_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        date_source, printed_time, guidance_rule_id, guidance_catalog_version,
+        guidance_anchor_event, guidance_anchor_date, suggested_date, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''',
       [
         draft.name,
@@ -413,6 +498,11 @@ class InventoryDatabase extends GeneratedDatabase {
         draft.printedDate,
         draft.printedDate == null ? 'unknown' : 'printed',
         draft.printedTime,
+        draft.guidance?.ruleId,
+        draft.guidance?.catalogVersion,
+        draft.guidance?.anchorEvent,
+        draft.guidance?.anchorDate,
+        draft.guidance?.suggestedDate,
         DateTime.now().toUtc().toIso8601String(),
       ],
     );

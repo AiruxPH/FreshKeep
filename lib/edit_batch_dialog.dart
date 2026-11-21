@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'data/inventory_database.dart';
 import 'domain/batch.dart';
 import 'domain/food_photo.dart';
-import 'widgets/food_photo.dart';
+import 'domain/guidance/find_guidance_rule.dart';
+import 'domain/guidance/guidance_selection.dart';
 import 'domain/stock_event.dart';
+import 'widgets/food_photo.dart';
 
 class EditBatchDialog extends StatefulWidget {
   const EditBatchDialog({
@@ -12,10 +14,12 @@ class EditBatchDialog extends StatefulWidget {
     required this.database,
     required this.batch,
     this.pickPhoto = pickFoodPhoto,
+    this.takePhoto = takeFoodPhoto,
   });
   final InventoryDatabase database;
   final InventoryBatch batch;
   final PickFoodPhoto pickPhoto;
+  final PickFoodPhoto takePhoto;
   @override
   State<EditBatchDialog> createState() => _EditBatchDialogState();
 }
@@ -28,6 +32,9 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
   TimeOfDay? _time;
   FoodPhoto? _photo;
   bool _updatePhoto = false;
+  BatchGuidance? _guidance;
+  bool _updateGuidance = false;
+  String? _guidanceNotice;
   bool _saving = false;
   String? _error;
   @override
@@ -36,6 +43,7 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
     _name = TextEditingController(text: widget.batch.draft.name);
     _storage = widget.batch.draft.storage;
     _photo = widget.batch.draft.photo;
+    _guidance = widget.batch.draft.guidance;
     _date = widget.batch.draft.printedDate == null
         ? null
         : DateTime.parse(widget.batch.draft.printedDate!);
@@ -46,6 +54,19 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
         final m = int.tryParse(parts[1]);
         if (h != null && m != null) _time = TimeOfDay(hour: h, minute: m);
       }
+    }
+    if (widget.pickPhoto == pickFoodPhoto && widget.takePhoto == takeFoodPhoto) {
+      _recoverLost();
+    }
+  }
+
+  Future<void> _recoverLost() async {
+    final recovered = await recoverLostPhoto();
+    if (recovered != null && mounted) {
+      setState(() {
+        _photo = recovered;
+        _updatePhoto = true;
+      });
     }
   }
 
@@ -75,6 +96,8 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
         expected: widget.batch.draft,
         updatePhoto: _updatePhoto,
         photo: _photo,
+        updateGuidance: _updateGuidance,
+        guidance: _guidance,
       );
       if (mounted) Navigator.pop(context, true);
     } catch (error) {
@@ -111,6 +134,7 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
                   photo: _photo,
                   enabled: !_saving,
                   pick: widget.pickPhoto,
+                  capture: widget.takePhoto,
                   onChanged: (photo) => setState(() {
                     _photo = photo;
                     _updatePhoto = true;
@@ -136,8 +160,52 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
                       .toList(),
                   onChanged: _saving
                       ? null
-                      : (v) => setState(() => _storage = v!),
+                      : (v) => setState(() {
+                          final next = v!;
+                          _storage = next;
+                          if (_guidance != null) {
+                            final rule = findGuidanceRule(_guidance!.ruleId);
+                            if (rule != null && rule.storage != next) {
+                              final oldStorage = rule.storage;
+                              _guidance = null;
+                              _updateGuidance = true;
+                              _guidanceNotice =
+                                  'Storage changed: previous guidance was cleared because it only applies to $oldStorage.';
+                            }
+                          }
+                        }),
                 ),
+                if (_guidanceNotice != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      _guidanceNotice!,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                if (_guidance != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Suggested date: ${_guidance!.suggestedDate} (${_guidance!.anchorEvent} ${_guidance!.anchorDate})',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _saving
+                              ? null
+                              : () => setState(() {
+                                  _guidance = null;
+                                  _updateGuidance = true;
+                                }),
+                          child: const Text('Clear suggested date'),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 16),
                 Tooltip(
                   message: 'Use only the date printed on this batch’s packaging. Clear it if no readable date is available.',

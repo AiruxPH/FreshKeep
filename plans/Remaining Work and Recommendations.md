@@ -4,7 +4,7 @@ Reviewed: 2026-11-21. This is the current remaining-work list; older plan milest
 
 ## Android build & device status
 
-**Priority 1 (debug APK build, physical-phone startup, and physical-phone core/photo/notification acceptance) is complete.** Schema is now v6 (with optional `printed_time` and live `hoursLeft` countdown), and all 76 automated tests plus `flutter analyze` pass.
+**Priority 1 (debug APK build, physical-phone startup, and physical-phone core/photo/notification acceptance) is complete.** Schema is now v7 (including optional `printed_time`, direct camera capture + lost-picker recovery, custom Android/web launcher icons, and calculated storage-guidance dates), and the full automated test suite + `flutter analyze` pass.
 
 Release signing is now wired in `android/app/build.gradle.kts` via `android/key.properties` (ignored in `.gitignore`, falling back to debug signing when `key.properties` is absent). Creating the keystore and building the final signed release artifact remains under Priority 2.
 
@@ -44,14 +44,14 @@ Web intentionally provides reminder settings and previews only. Browser backgrou
 
 ## Priority 2: final acceptance, evaluation and submission
 
-- [x] Map each numbered requirement R1-R46 to an executed acceptance case in `plans/Requirement Traceability and Evaluation.md`. (Re-check R45-R46 printed-time behavior on physical phone when ready.)
-- [x] Run the final regression suite and analysis (`flutter analyze` clean, 76/76 tests passing).
+- [x] Map each numbered requirement R1-R49 to an executed acceptance case in `plans/Requirement Traceability and Evaluation.md`. (Re-check R45-R49 printed-time, camera capture, launcher icon, and calculated guidance behavior on physical phone when ready.)
+- [x] Run the final regression suite and analysis (`flutter analyze` clean, full test suite passing).
 - [x] Set up a build-specific defect log and device timing sheet template in `plans/Requirement Traceability and Evaluation.md`.
 - [ ] Time representative tasks on the phone: add food, record disposal and correct stock. Report medians and ranges.
 - [ ] Confirm participant count, consent/evaluation procedures and questionnaire interpretation with the instructor; conduct user sessions and report findings separately from developer tests.
 - [ ] Address usability findings and document any remaining limitations.
 - [ ] Prepare final screenshots, results/write-up, code appendix and reproducible setup instructions.
-- [ ] Confirm final application identity, launcher icon, version/build number and distribution method.
+- [x] Generate custom Android adaptive/legacy launcher icon and web manifest/favicon icons (`assets/icon/freshkeep_icon_master.png`). Confirm final application identity and version/build number before distribution.
 - [ ] Generate the release keystore + `android/key.properties` (outside source control) and build/test the signed release artifact (`flutter build apk --release` or `flutter build appbundle --release`).
 - [ ] Reconcile historical planning text and the DOCX proposal copy where required. The development plan still contains obsolete initial setup steps and an older ten-week schedule below its superseding one-month agreement.
 

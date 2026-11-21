@@ -145,6 +145,21 @@ void main() {
         await legacy.customStatement(
           'ALTER TABLE batches DROP COLUMN printed_time',
         );
+        await legacy.customStatement(
+          'ALTER TABLE batches DROP COLUMN guidance_rule_id',
+        );
+        await legacy.customStatement(
+          'ALTER TABLE batches DROP COLUMN guidance_catalog_version',
+        );
+        await legacy.customStatement(
+          'ALTER TABLE batches DROP COLUMN guidance_anchor_event',
+        );
+        await legacy.customStatement(
+          'ALTER TABLE batches DROP COLUMN guidance_anchor_date',
+        );
+        await legacy.customStatement(
+          'ALTER TABLE batches DROP COLUMN suggested_date',
+        );
         await legacy.customStatement('PRAGMA user_version = 1');
         await legacy.close();
         legacy = InventoryDatabase(NativeDatabase(file));

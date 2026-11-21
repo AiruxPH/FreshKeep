@@ -1,14 +1,14 @@
-import 'widgets/food_photo.dart';
-
 import 'package:flutter/material.dart';
 
 import 'data/inventory_database.dart';
 import 'domain/batch.dart';
 import 'domain/stock_event.dart';
-import 'widgets/batch_date_label.dart';
-import 'guidance_screen.dart';
 import 'edit_batch_dialog.dart';
+import 'guidance_screen.dart';
 import 'stock_action_dialog.dart';
+import 'widgets/batch_date_label.dart';
+import 'widgets/food_photo.dart';
+import 'widgets/guidance/batch_guidance_card.dart';
 
 class BatchDetailsScreen extends StatefulWidget {
   const BatchDetailsScreen({
@@ -70,6 +70,53 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
           EditBatchDialog(database: widget.database, batch: _batch!),
     );
     if (saved == true && mounted) await _load();
+  }
+
+  Future<void> _openGuidance() async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => GuidanceScreen(
+          foodName: _batch!.draft.name,
+          storage: _batch!.draft.storage,
+          database: widget.database,
+          batch: _batch,
+        ),
+      ),
+    );
+    if (saved == true && mounted) await _load();
+  }
+
+  Future<void> _clearGuidance() async {
+    final current = _batch!;
+    setState(() => _busy = true);
+    try {
+      await widget.database.editBatchDetails(
+        current.id,
+        BatchDetailsDraft(
+          name: current.draft.name,
+          storage: current.draft.storage,
+          printedDate: current.draft.printedDate,
+          printedTime: current.draft.printedTime,
+        ),
+        expected: current.draft,
+        updateGuidance: true,
+        guidance: null,
+      );
+      if (mounted) await _load();
+    } catch (error) {
+      if (mounted) {
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is StockValidationException
+                  ? error.message
+                  : 'Could not clear suggested date. Please try again.',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _action(StockAction action) async {
@@ -186,6 +233,7 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
               children: [
                 const Text('Details updated'),
                 if (edit.photoChange != null) Text(edit.photoChange!),
+                if (edit.guidanceChange != null) Text(edit.guidanceChange!),
                 if (edit.before.name != edit.after.name)
                   Text('Name: ${edit.before.name} → ${edit.after.name}'),
                 if (edit.before.storage != edit.after.storage)
@@ -264,7 +312,18 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
                  BatchDateLabel(
                    printedDate: _batch!.draft.printedDate,
                    printedTime: _batch!.draft.printedTime,
+                   guidance: _batch!.draft.guidance,
                  ),
+                 if (_batch!.draft.guidance != null)
+                   Padding(
+                     padding: const EdgeInsets.only(top: 12),
+                     child: BatchGuidanceCard(
+                       guidance: _batch!.draft.guidance!,
+                       hasPrintedDate: _batch!.draft.printedDate != null,
+                       onChange: _openGuidance,
+                       onClear: _clearGuidance,
+                     ),
+                   ),
                   const SizedBox(height: 20),
                   Wrap(
                     spacing: 12,
@@ -318,14 +377,7 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
                     leading: const Icon(Icons.menu_book_outlined),
                     title: const Text('Storage guidance'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => GuidanceScreen(
-                          foodName: _batch!.draft.name,
-                          storage: _batch!.draft.storage,
-                        ),
-                      ),
-                    ),
+                    onTap: _openGuidance,
                   ),
                   const SizedBox(height: 16),
                   _stockHistory(),

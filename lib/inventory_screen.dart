@@ -374,6 +374,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             BatchDateLabel(
               printedDate: batch.draft.printedDate,
               printedTime: batch.draft.printedTime,
+              guidance: batch.draft.guidance,
             ),
             if (batch.depleted)
               const Padding(

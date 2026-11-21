@@ -1,4 +1,6 @@
 import 'food_photo.dart';
+import 'guidance/find_guidance_rule.dart';
+import 'guidance/guidance_selection.dart';
 
 class BatchDraft {
   BatchDraft({
@@ -9,6 +11,7 @@ class BatchDraft {
     this.printedDate,
     this.printedTime,
     this.photo,
+    this.guidance,
   }) : name = name.trim() {
     if (this.name.isEmpty || this.name.length > 100) {
       throw ArgumentError('Enter a food name of 1 to 100 characters.');
@@ -36,6 +39,14 @@ class BatchDraft {
         throw ArgumentError('Enter a valid time in HH:mm format.');
       }
     }
+    if (guidance != null) {
+      final rule = findGuidanceRule(guidance!.ruleId);
+      if (rule != null && rule.storage != storage) {
+        throw ArgumentError(
+          'Storage guidance does not match the selected storage location.',
+        );
+      }
+    }
   }
   static const units = ['pieces', 'g', 'mL'];
   static const locations = ['Pantry', 'Fridge', 'Freezer'];
@@ -49,6 +60,7 @@ class BatchDraft {
   /// is also set. Null means no time was entered; date-only rules apply.
   final String? printedTime;
   final FoodPhoto? photo;
+  final BatchGuidance? guidance;
   static String dateOnly(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
@@ -127,10 +139,12 @@ class BatchEdit {
     required this.after,
     required this.createdAt,
     this.photoChange,
+    this.guidanceChange,
   });
   final int id;
   final BatchDetailsDraft before;
   final BatchDetailsDraft after;
   final DateTime createdAt;
   final String? photoChange;
+  final String? guidanceChange;
 }

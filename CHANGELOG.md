@@ -1,5 +1,24 @@
 # Offline change log
 
+## 2026-11-21 (15:18 +08:00)
+
+- **Reason for change:** User approved all three follow-up enhancements: direct camera capture, a custom FreshKeep app launcher icon across Android and web, and calculated storage-guidance dates with explicit rule/condition/anchor confirmation.
+- **Direct camera capture (`lib/widgets/photo_picker/*`, `lib/widgets/food_photo.dart`, `lib/add_groceries_dialog.dart`, `lib/edit_batch_dialog.dart`, `android/app/src/main/AndroidManifest.xml`):**
+  - Sliced photo decoding, source picking, camera capture, and Android `retrieveLostData()` recovery into standalone helper files under `lib/widgets/photo_picker/`.
+  - Added a `Take photo` button alongside the existing gallery chooser in `FoodPhotoEditor`, sharing 5 MB size checks, image-codec readability verification, and non-destructive cancellation/error handling.
+  - Added `android.hardware.camera` (`required="false"`) and `<action android:name="android.media.action.IMAGE_CAPTURE" />` query to `AndroidManifest.xml`, and wired `recoverLostPhoto()` into entry/edit dialog startup.
+- **Custom FreshKeep launcher icon (`assets/icon/freshkeep_icon_master.png`, `android/app/src/main/res/*`, `web/*`):**
+  - Generated a flat botanical leaf-and-checkmark icon master (1024×1024 PNG) and derived all Android legacy mipmaps (`mdpi`–`xxxhdpi`), Android API 26+ adaptive foregrounds (`ic_launcher_foreground.png`), adaptive icon XML + sampled `#226345` background color (`colors.xml`, `mipmap-anydpi-v26/ic_launcher.xml`), `web/favicon.png`, and standard/maskable web app icons.
+- **Calculated storage-guidance dates (`lib/domain/guidance/*`, `lib/widgets/guidance/*`, `lib/domain/storage_guidance.dart`, `lib/data/guidance_catalog.dart`, `lib/data/inventory_database.dart`, `lib/guidance_screen.dart`, `lib/batch_details_screen.dart`, `lib/edit_batch_dialog.dart`, `lib/widgets/batch_date_label.dart`, `lib/domain/inventory_query.dart`, `lib/domain/reminder.dart`):**
+  - Added cited `minDays`, `maxDays`, and `defaultAnchorEvent` metadata to all 17 catalog rules without altering source durations.
+  - Created standalone domain helpers for local calendar addition (`addCalendarDays`), rule lookup, window calculation, `BatchGuidance`, and `resolveEffectiveDate()` (ensuring printed packaging dates always take priority over calculated guidance dates).
+  - Bumped database `schemaVersion` from 6 to 7, adding nullable guidance columns on `batches` and `guidance_change` on `batch_edits`, while keeping `batches.date_source` CHECK compatibility (`'printed'`, `'unknown'`).
+  - Built `showApplyGuidanceSheet` (requiring explicit starting event + starting date before enabling Save) and `BatchGuidanceCard`, wired them through `GuidanceScreen` and `BatchDetailsScreen`, updated `EditBatchDialog` to clear incompatible guidance on storage changes, and wired effective suggested dates into status chips, sorting/filtering, and reminders (truthfully labeled `Suggested date (guidance)`).
+- **Cause of errors / adjustments during implementation:**
+  - `generate_image` outputs `.jpg` into the artifact directory and lacks shell access; sampled its corner background pixel (`#226345`) and converted/resized all 15 Android/web PNG targets + `colors.xml` via PowerShell `System.Drawing`.
+  - Updated legacy v1–v5 migration fixtures in `test/stock_actions_test.dart`, `test/reminder_test.dart`, `test/batch_edit_test.dart`, and `test/food_photo_test.dart` to drop the new v7 guidance columns before running `onUpgrade`.
+  - Fixed two test expectation/viewport issues in `test/calculated_guidance_test.dart`: `queryInventory()` defaults to `InventorySort.newest` (`[2, 1]` instead of `[1, 2]`), and the widget test needed `pumpAndSettle()` after `ensureVisible` plus an expanded test surface so the guidance card action button sat inside the clickable viewport.
+
 ## 2026-11-21 (14:56 +08:00)
 
 - **Reason for change:** User confirmed Priority 1 (Android debug build, physical-phone startup, and physical-phone core/photo/notification acceptance) is complete and requested executing Priority 2 preparation tasks.
