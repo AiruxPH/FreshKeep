@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'data/inventory_database.dart';
 import 'app_shell.dart';
+import 'intro/freshkeep_entry_gate.dart';
 import 'widgets/local_day_scope.dart';
 import 'reminders/reminder_controller.dart';
 import 'reminders/notification_service.dart';
@@ -14,14 +15,21 @@ void main() {
     FreshKeepApp(
       database: database,
       reminders: ReminderController(database, createNotificationService()),
+      showIntro: true,
     ),
   );
 }
 
 class FreshKeepApp extends StatelessWidget {
-  const FreshKeepApp({super.key, required this.database, this.reminders});
+  const FreshKeepApp({
+    super.key,
+    required this.database,
+    this.reminders,
+    this.showIntro = false,
+  });
   final InventoryDatabase database;
   final ReminderController? reminders;
+  final bool showIntro;
   @override
   Widget build(BuildContext context) => LocalDayScope(
     child: ReminderLifecycle(
@@ -84,7 +92,10 @@ class FreshKeepApp extends StatelessWidget {
           ),
           useMaterial3: true,
         ),
-        home: AppShell(database: database, reminders: reminders),
+        home: FreshKeepEntryGate(
+          showIntro: showIntro,
+          child: AppShell(database: database, reminders: reminders),
+        ),
       ),
     ),
   );

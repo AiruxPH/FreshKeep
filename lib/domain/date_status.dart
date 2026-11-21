@@ -1,9 +1,9 @@
 enum DateStatus { later, soon, hoursLeft, today, past, unknown }
 
 /// Compare calendar days, not elapsed 24-hour periods (which vary across DST).
-/// When [time] is provided ("HH:mm"), the status is refined within the same
-/// calendar day: if the datetime is in the future but fewer than 24 h away,
-/// [DateStatus.hoursLeft] is returned instead of [DateStatus.today].
+/// When [time] is provided ("HH:mm"), any future datetime under 24 hours away
+/// returns [DateStatus.hoursLeft], and any elapsed datetime returns
+/// [DateStatus.past].
 DateStatus dateStatus(String? date, DateTime now, {String? time}) {
   if (date == null) return DateStatus.unknown;
   final parsed = DateTime.parse(date);
@@ -13,11 +13,7 @@ DateStatus dateStatus(String? date, DateTime now, {String? time}) {
     parsed.month,
     parsed.day,
   ).difference(DateTime.utc(local.year, local.month, local.day)).inDays;
-  if (dayDiff < 0) return DateStatus.past;
-  if (dayDiff > 3) return DateStatus.later;
-  if (dayDiff > 0) return DateStatus.soon; // 1–3 days away (calendar)
 
-  // dayDiff == 0 → same calendar day
   if (time != null) {
     final parts = time.split(':');
     if (parts.length == 2) {
@@ -25,11 +21,20 @@ DateStatus dateStatus(String? date, DateTime now, {String? time}) {
       final m = int.tryParse(parts[1]);
       if (h != null && m != null) {
         final expiresAt = DateTime(parsed.year, parsed.month, parsed.day, h, m);
-        if (expiresAt.isAfter(local)) return DateStatus.hoursLeft;
-        return DateStatus.past; // time has already passed today
+        final remaining = expiresAt.difference(local);
+        if (remaining <= Duration.zero) return DateStatus.past;
+        if (remaining < const Duration(hours: 24)) {
+          return DateStatus.hoursLeft;
+        }
+        if (dayDiff <= 3) return DateStatus.soon;
+        return DateStatus.later;
       }
     }
   }
+
+  if (dayDiff < 0) return DateStatus.past;
+  if (dayDiff > 3) return DateStatus.later;
+  if (dayDiff > 0) return DateStatus.soon;
   return DateStatus.today;
 }
 

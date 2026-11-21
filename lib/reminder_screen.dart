@@ -4,6 +4,7 @@ import 'data/inventory_database.dart';
 import 'domain/reminder.dart';
 import 'reminders/notification_service.dart';
 import 'reminders/reminder_controller.dart';
+import 'widgets/toast/show_freshkeep_toast.dart';
 
 class ReminderScreen extends StatefulWidget {
   const ReminderScreen({super.key, required this.database, this.controller});
@@ -88,20 +89,17 @@ class _ReminderScreenState extends State<ReminderScreen> {
     try {
       await _controller.service.sendTest();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Test notification requested. Check your device.'),
-          ),
+        showFreshKeepToast(
+          context,
+          message: 'Test notification requested. Check your device.',
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+        showFreshKeepToast(
+          context,
+          message:
               'Could not send a test. Check Android notification permissions.',
-            ),
-          ),
         );
       }
     } finally {

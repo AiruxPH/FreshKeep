@@ -7,6 +7,7 @@ import '../domain/batch.dart';
 import '../domain/food_photo.dart';
 import '../domain/guidance/find_guidance_rule.dart';
 import '../domain/guidance/guidance_selection.dart';
+import '../domain/recent_stock_action.dart';
 import '../domain/stock_event.dart';
 import '../domain/inventory_report.dart';
 import '../domain/reminder.dart';
@@ -562,4 +563,35 @@ class InventoryDatabase extends GeneratedDatabase {
           .toList(),
     );
   });
+
+  /// Returns newest-first unreversed stock actions across all batches so the
+  /// user can undo mistaken entries even after a quick toast disappears.
+  Future<List<RecentStockAction>> loadRecentUndoableEvents({
+    int limit = 20,
+  }) async {
+    final rows = await customSelect(
+      '''SELECT e.id, e.batch_id, b.name, b.unit, e.type, e.delta, e.reason, e.created_at
+      FROM events e
+      JOIN batches b ON b.id = e.batch_id
+      WHERE e.type != 'reverse'
+        AND NOT EXISTS (SELECT 1 FROM events r WHERE r.reverses_id = e.id)
+      ORDER BY e.id DESC
+      LIMIT ?''',
+      variables: [Variable.withInt(limit)],
+    ).get();
+    return rows
+        .map(
+          (row) => RecentStockAction(
+            eventId: row.read<int>('id'),
+            batchId: row.read<int>('batch_id'),
+            food: row.read<String>('name'),
+            unit: row.read<String>('unit'),
+            type: row.read<String>('type'),
+            delta: row.read<int>('delta'),
+            reason: row.readNullable<String>('reason'),
+            createdAt: DateTime.parse(row.read<String>('created_at')),
+          ),
+        )
+        .toList();
+  }
 }

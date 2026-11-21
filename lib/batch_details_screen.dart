@@ -9,6 +9,7 @@ import 'stock_action_dialog.dart';
 import 'widgets/batch_date_label.dart';
 import 'widgets/food_photo.dart';
 import 'widgets/guidance/batch_guidance_card.dart';
+import 'widgets/toast/show_freshkeep_toast.dart';
 
 class BatchDetailsScreen extends StatefulWidget {
   const BatchDetailsScreen({
@@ -106,14 +107,11 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
     } catch (error) {
       if (mounted) {
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              error is StockValidationException
-                  ? error.message
-                  : 'Could not clear suggested date. Please try again.',
-            ),
-          ),
+        showFreshKeepToast(
+          context,
+          message: error is StockValidationException
+              ? error.message
+              : 'Could not clear suggested date. Please try again.',
         );
       }
     }
@@ -157,14 +155,11 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
     } catch (error) {
       if (mounted) {
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              error is StockValidationException
-                  ? error.message
-                  : 'Could not undo this entry. Please try again.',
-            ),
-          ),
+        showFreshKeepToast(
+          context,
+          message: error is StockValidationException
+              ? error.message
+              : 'Could not undo this entry. Please try again.',
         );
       }
     }

@@ -7,6 +7,7 @@ import 'domain/batch.dart';
 import 'domain/stock_event.dart';
 import 'domain/storage_guidance.dart';
 import 'widgets/guidance/apply_guidance_sheet.dart';
+import 'widgets/toast/show_freshkeep_toast.dart';
 
 class GuidanceScreen extends StatefulWidget {
   const GuidanceScreen({
@@ -51,18 +52,13 @@ class _GuidanceScreenState extends State<GuidanceScreen> {
         ),
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Source citation copied.')),
-        );
+        showFreshKeepToast(context, message: 'Source citation copied.');
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Could not copy. You can select the source link below.',
-            ),
-          ),
+        showFreshKeepToast(
+          context,
+          message: 'Could not copy. You can select the source link below.',
         );
       }
     }
@@ -99,14 +95,11 @@ class _GuidanceScreenState extends State<GuidanceScreen> {
     } catch (error) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              error is StockValidationException
-                  ? error.message
-                  : 'Could not save suggested date. Please try again.',
-            ),
-          ),
+        showFreshKeepToast(
+          context,
+          message: error is StockValidationException
+              ? error.message
+              : 'Could not save suggested date. Please try again.',
         );
       }
     }
@@ -134,14 +127,11 @@ class _GuidanceScreenState extends State<GuidanceScreen> {
     } catch (error) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              error is StockValidationException
-                  ? error.message
-                  : 'Could not clear suggested date. Please try again.',
-            ),
-          ),
+        showFreshKeepToast(
+          context,
+          message: error is StockValidationException
+              ? error.message
+              : 'Could not clear suggested date. Please try again.',
         );
       }
     }

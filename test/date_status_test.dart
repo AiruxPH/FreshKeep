@@ -74,7 +74,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('In 1–3 days'), findsOneWidget);
+    expect(find.text('3 days left'), findsOneWidget);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     now = DateTime(2026, 11, 4, 12);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
@@ -132,9 +132,14 @@ void main() {
       dateStatus('2026-11-01', DateTime(2026, 11, 1, 10, 0)),
       DateStatus.today,
     );
-    // Item is tomorrow, time provided → soon (not hoursLeft)
+    // Item is tomorrow morning (< 24 h away) with time provided → hoursLeft
     expect(
       dateStatus('2026-11-02', DateTime(2026, 11, 1, 10, 0), time: '08:00'),
+      DateStatus.hoursLeft,
+    );
+    // Item is tomorrow afternoon (>= 24 h away) with time provided → soon
+    expect(
+      dateStatus('2026-11-02', DateTime(2026, 11, 1, 10, 0), time: '14:00'),
       DateStatus.soon,
     );
   });
@@ -179,7 +184,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('4h left'), findsOneWidget);
+    expect(find.text('4 hours left'), findsOneWidget);
     expect(find.text('Printed date · 2026-11-01 14:00'), findsOneWidget);
     // After the time has passed on the same day → Past date chip
     now = DateTime(2026, 11, 1, 15, 0);

@@ -37,12 +37,10 @@ class _AppShellState extends State<AppShell> {
   Widget _pages() => IndexedStack(
     index: _selected,
     children: [
-      ScaffoldMessenger(
-        child: InventoryScreen(
-          database: widget.database,
-          reminders: widget.reminders,
-          refreshToken: _inventoryRevision,
-        ),
+      InventoryScreen(
+        database: widget.database,
+        reminders: widget.reminders,
+        refreshToken: _inventoryRevision,
       ),
       _selected == 1
           ? ReportScreen(database: widget.database)

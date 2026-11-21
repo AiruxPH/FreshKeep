@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/date_status.dart';
+import '../domain/format_remaining_duration.dart';
 import '../domain/guidance/guidance_selection.dart';
 import 'local_day_scope.dart';
 
@@ -61,14 +62,11 @@ class BatchDateLabel extends StatelessWidget {
       ),
     };
 
-    // Build the countdown label for hoursLeft status.
-    var chipLabel = status.label;
-    if (status == DateStatus.hoursLeft &&
-        effectiveDate != null &&
-        effectiveTime != null) {
-      final countdown = hoursLeftLabel(effectiveDate, effectiveTime, now);
-      if (countdown != null) chipLabel = countdown;
-    }
+    final chipLabel = formatRemainingDuration(
+      effectiveDate,
+      now,
+      time: effectiveTime,
+    );
 
     // Show full datetime when time is present, otherwise date or suggested window.
     final String? dateDisplay;

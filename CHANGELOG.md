@@ -1,5 +1,33 @@
 # Offline change log
 
+## 2026-11-21 (16:12 +08:00)
+
+- **Reason for change:** Because Use/Discard quick-action toasts now auto-dismiss after 4 seconds, the user requested a persistent alternative way to undo actions (especially for depleted batches that leave the default `"In stock"` view).
+- **Persistent recent-undo sheet (`lib/domain/recent_stock_action.dart`, `lib/data/inventory_database.dart`, `lib/widgets/recent_undo_sheet.dart`, `lib/inventory_screen.dart`):**
+  - Created `RecentStockAction` domain model summarizing unreversed `consume`, `dispose`, and `correct` movements.
+  - Added `InventoryDatabase.loadRecentUndoableEvents()` querying newest-first unreversed stock actions across all batches without any schema migration.
+  - Created `showRecentUndoSheet` modal sheet displaying recent undoable actions with timestamps, optional reasons, and an `Undo` button that restores stock/waste via append-only `undoEvent()`, shows a confirmation toast, and immediately notifies `InventoryScreen` to refresh.
+  - Added an `Undo recent action` `IconButton` in the `InventoryScreen` AppBar so undo remains reachable at any time alongside the 4-second toast shortcut and per-batch history screen.
+- **Tests (`test/intro_and_toast_test.dart`):** Added database and end-to-end widget tests verifying `loadRecentUndoableEvents()` filtering and restoring a depleted batch via the AppBar Undo sheet after the toast has auto-dismissed.
+- **Cause of error fixed during verification:** Adding the `Undo recent action` `IconButton` to `InventoryScreen`'s `AppBar.actions` caused a 35 px `RenderFlex` overflow at `textScaleFactor = 2.0` on 390 px phone width because `Text('FreshKeep')` inside the title `Row` was unflexed; wrapped it in `Flexible` with `TextOverflow.ellipsis`.
+- **Verification:** `flutter analyze` (`No issues found!`) and `flutter test -j 1` (**88/88 tests passing**).
+
+## 2026-11-21 (16:05 +08:00)
+
+- **Reason for change:** User reported three issues/requests after testing the release APK on mobile: (1) bottom Use/Discard notifications did not disappear automatically, (2) remaining time labels like `"In 1–3 days"` should display actual remaining weeks/days/hours/minutes/seconds, and (3) app should open on an introductory welcome screen before entering the main dashboard/inventory.
+- **Root cause of persistent notification bug:** Material 3 `SnackBar` with a `SnackBarAction` (`Undo`) persists on screen indefinitely until manually dismissed under Flutter 3.x / Android accessibility rules.
+- **Auto-dismissing floating toast (`lib/widgets/toast/*`, `lib/inventory_screen.dart`, `lib/batch_details_screen.dart`, `lib/guidance_screen.dart`, `lib/reminder_screen.dart`, `lib/app_shell.dart`):**
+  - Created standalone `toast_state.dart`, `freshkeep_toast_card.dart`, `toast_overlay_host.dart`, and `show_freshkeep_toast.dart`.
+  - Replaced all `ScaffoldMessenger.showSnackBar` calls across the app with `showFreshKeepToast` (auto-dismisses after 4 s when an `Undo` action is present, 3 s otherwise, and supports tap-to-dismiss with guaranteed timer cancellation on dispose). Removed the redundant `ScaffoldMessenger` wrapper in `AppShell`.
+- **Actual remaining-duration labels (`lib/domain/format_remaining_duration.dart`, `lib/domain/date_status.dart`, `lib/widgets/batch_date_label.dart`):**
+  - Created `formatRemainingDuration()` scaling cleanly across weeks (`X week(s) Y day(s) left`), days (`X day(s) left`), hours (`X hour(s) Y min(s) left`), minutes (`X minute(s) left`), and seconds (`X second(s) left`), while keeping `Date unknown`, `Today` (when no clock time was entered), and `Past date` accurate.
+  - Updated `dateStatus()` so any timed item less than 24 hours away (including across midnight) maps to `DateStatus.hoursLeft`, and wired `formatRemainingDuration()` into `BatchDateLabel`.
+- **Opening intro screen (`lib/intro/*`, `lib/main.dart`, `pubspec.yaml`):**
+  - Created `IntroFeatureTile`, `IntroScreen`, and `FreshKeepEntryGate`, registered `assets/icon/freshkeep_icon_master.png` in `pubspec.yaml`, and enabled `showIntro: true` in `main()` while defaulting `FreshKeepApp(showIntro: false)` to preserve existing app-shell tests.
+- **Tests (`test/date_status_test.dart`, `test/intro_and_toast_test.dart`):** Updated label/cross-midnight assertions in `date_status_test.dart` and added unit + widget coverage for `formatRemainingDuration`, 4-second toast auto-dismissal & Undo, and `IntroScreen` navigation & 2.0x text scaling.
+- **Cause of test fix during verification:** `test/intro_and_toast_test.dart` initially used `find.byType(TextFormField)` during the Discard action test, failing with `Too many elements` because the Discard form renders both quantity and reason fields; updated to `.first`.
+- **Verification:** `flutter pub get`, `flutter analyze` (`No issues found!`), and `flutter test -j 1` (**86/86 tests passing**).
+
 ## 2026-11-21 (15:41 +08:00)
 
 - **Reason for change:** User requested building the smaller Android release APK for on-device testing of the new schema v7, camera capture, launcher icon, and printed-time features.

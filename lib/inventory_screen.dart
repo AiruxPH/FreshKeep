@@ -14,6 +14,8 @@ import 'reminders/reminder_controller.dart';
 import 'domain/inventory_query.dart';
 import 'domain/date_status.dart';
 import 'widgets/local_day_scope.dart';
+import 'widgets/recent_undo_sheet.dart';
+import 'widgets/toast/show_freshkeep_toast.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({
@@ -262,6 +264,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
     if (mounted) await _load();
   }
 
+  Future<void> _openRecentUndo() async {
+    await showRecentUndoSheet(
+      context,
+      database: widget.database,
+      onUndone: () {
+        if (mounted) _load();
+      },
+    );
+  }
+
   void _showAll() => setState(() {
     _search.clear();
     _storage = 'all';
@@ -280,38 +292,28 @@ class _InventoryScreenState extends State<InventoryScreen> {
     if (id == null || !mounted) return;
     await _load();
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            action == StockAction.consume
-                ? 'Food use recorded.'
-                : 'Waste recorded.',
-          ),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () async {
-              try {
-                await widget.database.undoEvent(batch.id, id);
-                if (mounted) await _load();
-              } catch (error) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        error is StockValidationException
-                            ? error.message
-                            : 'Could not undo. Please try again.',
-                      ),
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-        ),
-      );
+    showFreshKeepToast(
+      context,
+      message: action == StockAction.consume
+          ? 'Food use recorded.'
+          : 'Waste recorded.',
+      actionLabel: 'Undo',
+      onAction: () async {
+        try {
+          await widget.database.undoEvent(batch.id, id);
+          if (mounted) await _load();
+        } catch (error) {
+          if (mounted) {
+            showFreshKeepToast(
+              context,
+              message: error is StockValidationException
+                  ? error.message
+                  : 'Could not undo. Please try again.',
+            );
+          }
+        }
+      },
+    );
   }
 
   Widget _foodCard(InventoryBatch batch) => Card(
@@ -426,10 +428,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 children: [
                   Icon(Icons.eco_outlined),
                   SizedBox(width: 8),
-                  Text('FreshKeep'),
+                  Flexible(
+                    child: Text(
+                      'FreshKeep',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
         actions: [
+          IconButton(
+            key: const ValueKey('recent-undo-button'),
+            onPressed: _loading ? null : _openRecentUndo,
+            tooltip: 'Undo recent action',
+            icon: const Icon(Icons.undo),
+          ),
           IconButton(
             onPressed: _loading ? null : _load,
             tooltip: 'Refresh inventory',
