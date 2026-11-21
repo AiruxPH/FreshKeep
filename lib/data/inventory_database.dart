@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../domain/backup/backup_models.dart';
 import '../domain/batch.dart';
 import '../domain/food_photo.dart';
 import '../domain/guidance/find_guidance_rule.dart';
@@ -11,6 +12,8 @@ import '../domain/recent_stock_action.dart';
 import '../domain/stock_event.dart';
 import '../domain/inventory_report.dart';
 import '../domain/reminder.dart';
+import 'backup/export_database_backup.dart';
+import 'backup/import_database_backup.dart';
 
 /// Explicit SQL for the initial schema, with versioned migrations.
 class InventoryDatabase extends GeneratedDatabase {
@@ -615,5 +618,21 @@ class InventoryDatabase extends GeneratedDatabase {
           ),
         )
         .toList();
+  }
+
+  /// Exports a consistent point-in-time snapshot of local FreshKeep records.
+  Future<FreshKeepBackup> exportBackup({
+    bool includePhotos = true,
+    DateTime? now,
+  }) => exportDatabaseBackup(this, includePhotos: includePhotos, now: now);
+
+  /// Atomically imports a validated backup snapshot and notifies listeners.
+  Future<BackupImportSummary> importBackup(
+    FreshKeepBackup backup, {
+    required BackupImportMode mode,
+  }) async {
+    final summary = await importDatabaseBackup(this, backup, mode: mode);
+    _changed();
+    return summary;
   }
 }

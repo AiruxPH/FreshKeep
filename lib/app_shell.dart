@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'backup_screen.dart';
 import 'data/inventory_database.dart';
 import 'guidance_screen.dart';
 import 'inventory_screen.dart';
+import 'ocr/scan_label_screen.dart';
 import 'reminder_screen.dart';
 import 'reminders/reminder_controller.dart';
 import 'report_screen.dart';
@@ -54,12 +56,15 @@ class _AppShellState extends State<AppShell> {
 
   Widget _more() => Scaffold(
     appBar: AppBar(title: const Text('More')),
-    body: Center(
+    body: Align(
+      alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
-        child: ListView(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
-          children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             Text(
               'Make FreshKeep yours',
               style: Theme.of(context).textTheme.headlineSmall,
@@ -101,6 +106,49 @@ class _AppShellState extends State<AppShell> {
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+            Text(
+              'Tools & experiments',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.backup_outlined),
+                    title: const Text('Backup & restore'),
+                    subtitle: const Text(
+                      'Export or import local JSON backups',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => BackupScreen(
+                          database: widget.database,
+                          reminders: widget.reminders,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: const Icon(Icons.document_scanner_outlined),
+                    title: const Text('Label scanner (OCR experiment)'),
+                    subtitle: const Text(
+                      'Scan packaging text into an editable draft',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            ScanLabelScreen(database: widget.database),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 28),
             const ListTile(
               contentPadding: EdgeInsets.zero,
@@ -108,7 +156,8 @@ class _AppShellState extends State<AppShell> {
               title: Text('Your kitchen, saved locally'),
               subtitle: Text('Your inventory stays on this device.'),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     ),

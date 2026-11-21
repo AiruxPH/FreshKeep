@@ -1,5 +1,25 @@
 # Offline change log
 
+## 2026-11-21 (17:45 +08:00)
+
+- **Reason for change:** Project pushed to `https://github.com/AiruxPH/FreshKeep`; user requested implementing both optional extras: offline **Local JSON Backup (export/import)** and the separate **On-Device ML Kit OCR Experiment**.
+- **Dependencies & release shrinker config (`pubspec.yaml`, `android/app/proguard-rules.pro`, `android/app/build.gradle.kts`):**
+  - Pinned `file_picker: 13.4.0` and `google_mlkit_text_recognition: 1.0.3` in `pubspec.yaml`.
+  - Added `android/app/proguard-rules.pro` and wired it into `buildTypes.release` in `android/app/build.gradle.kts` to retain ML Kit classes and ignore `compileOnly` optional non-Latin script warnings under R8.
+- **Workstream 1 — Local JSON Backup (`lib/domain/backup/*`, `lib/data/backup/*`, `lib/backup/backup_file_io.dart`, `lib/widgets/backup/*`, `lib/backup_screen.dart`, `lib/data/inventory_database.dart`):**
+  - Added pure-Dart versioned JSON backup models, deterministic filenames (`buildBackupFilename`), serializer, strict parser (`parseBackup`), and domain-invariant validator (`validateBackup` enforcing batch rules, 5 MB base64 photo caps, event conservation, unique `reversesId` links, audit validity, and reminder settings).
+  - Implemented transactional `exportBackup` and atomic `importBackup` with two explicit modes: **Merge** (remaps batch IDs, events, `reverses_id` links, edits, and photos without touching existing data or reminder settings) and **Replace** (drops and immediately recreates the append-only triggers on `events` and `batch_edits` inside the same transaction while preserving `onboarding_completed`).
+  - Added platform-safe `FilePicker.saveFile` / `FilePicker.pickFile` wrapper (using `FileType.any` on Android so `.json` files stay selectable), photo-inclusion toggle, 2 MB clipboard guard, JSON paste dialog, and pre-import preview/mode confirmation dialog (`showImportPreviewDialog`).
+- **Workstream 2 — Separate ML Kit OCR Experiment (`lib/domain/ocr/*`, `lib/ocr/*`, `lib/widgets/ocr/*`, `lib/add_groceries_dialog.dart`, `lib/app_shell.dart`):**
+  - Added pure-Dart label parsers (`parsePrintedDate`, `parseFoodName`, `mergeOcrScans`) supporting multi-photo single-item scans (e.g. front label name + back/lid expiration date), multi-line cue inheritance (`BEST BEFORE` on prior line), exclusion of manufacturing dates (`MFG`/`MFD`/`PROD`/`PKD`), strict calendar checks, explicit confirmation chips for ambiguous numeric (`DD/MM` vs `MM/DD`) and month-only dates, and transparent unknown dates when missing or unreadable.
+  - Isolated `google_mlkit_text_recognition` (`TextRecognizer` / `InputImage`) behind a conditional import (`lib/ocr/mlkit_ocr_service_io.dart` on mobile vs web-safe `lib/ocr/mlkit_ocr_service_stub.dart`) with an honest `SampleOcrService` for web/desktop draft-review testing without claiming real image recognition.
+  - Built `ScanLabelScreen` with manual-edit preservation across additional scans, non-blocking OCR error recovery, raw OCR log viewer, and draft-only handoff into `AddGroceriesScreen` (`Scan label (beta)` button and **More → Tools & experiments**).
+- **Causes of errors caught & fixed during implementation/verification:**
+  1. Removed an unnecessary `dart:typed_data` import flagged by `flutter analyze` in `lib/backup/backup_file_io.dart`.
+  2. Fixed a bug in `lib/domain/ocr/parse_printed_date.dart` where `*` before the year group in `_monthNameDayRegex` allowed `'BEST BEFORE NOV 2026'` to match `'Nov 20, 2026'` instead of month-only `'2026-11-30'`, and claimed invalid 3-part date spans (`30/02/2027`) so invalid dates cannot fall back into `MM/YYYY` matches.
+  3. Switched `_more()` (`lib/app_shell.dart`), `BackupScreen`, and `ScanLabelScreen` from lazy `ListView` to `SingleChildScrollView` + `Column` so below-fold controls render cleanly in scroll/accessibility flows, and updated sample-mode widget tests in `test/ocr_experiment_test.dart` to pass `SampleOcrService()` explicitly (since `flutter_test` emulates `TargetPlatform.android` by default).
+- **Verification:** `dart:io` / `google_mlkit` imports confirmed isolated to `lib/ocr/mlkit_ocr_service_io.dart`, `flutter analyze` passed (`No issues found!`), and `flutter test -j 1` passed (**110/110 tests passing**, including `test/backup_test.dart` and `test/ocr_experiment_test.dart`).
+
 ## 2026-11-21 (16:48 +08:00)
 
 - **Reason for change:** User reported three findings from phone testing: (1) notifications failed in the release build even when enabled in Android phone settings, (2) the intro screen should act as first-open-only onboarding with a separate splash screen shown on every launch, and (3) Dashboard needed richer visual presentation while Waste Log needed search and filter controls.

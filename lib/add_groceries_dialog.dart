@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import 'data/inventory_database.dart';
 import 'domain/batch.dart';
 import 'domain/food_photo.dart';
+import 'domain/ocr/ocr_models.dart';
+import 'ocr/ocr_service.dart';
+import 'ocr/pick_scan_image.dart';
+import 'ocr/scan_label_screen.dart';
 import 'widgets/food_photo.dart';
 
 class AddGroceriesScreen extends StatefulWidget {
@@ -13,10 +17,16 @@ class AddGroceriesScreen extends StatefulWidget {
     required this.database,
     this.pickPhoto = pickFoodPhoto,
     this.takePhoto = takeFoodPhoto,
+    this.initialDrafts = const [],
+    this.ocrService,
+    this.pickScanImage,
   });
   final InventoryDatabase database;
   final PickFoodPhoto pickPhoto;
   final PickFoodPhoto takePhoto;
+  final List<OcrGroceryDraft> initialDrafts;
+  final OcrService? ocrService;
+  final PickScanImage? pickScanImage;
   @override
   State<AddGroceriesScreen> createState() => _AddGroceriesScreenState();
 }
@@ -52,17 +62,32 @@ class _DraftRow {
 
 class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
   final _form = GlobalKey<FormState>();
-  final _rows = [_DraftRow()];
+  final _rows = <_DraftRow>[];
   // Retire removed controllers only after their fields leave the tree.
   final _retired = <_DraftRow>[];
   List<String> _names = [];
   bool _saving = false;
+  bool _ocrDrafted = false;
   String? _error;
   bool _namesFailed = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.initialDrafts.isEmpty) {
+      _rows.add(_DraftRow());
+    } else {
+      _ocrDrafted = true;
+      for (final draft in widget.initialDrafts) {
+        final row = _DraftRow();
+        row.name.text = draft.name;
+        row.date = draft.printedDate == null
+            ? null
+            : DateTime.tryParse(draft.printedDate!);
+        row.photo = draft.photo;
+        _rows.add(row);
+      }
+    }
     _loadNames();
     if (widget.pickPhoto == pickFoodPhoto && widget.takePhoto == takeFoodPhoto) {
       _recoverLost();
@@ -145,7 +170,7 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
       controller: controller,
       focusNode: focus,
       enabled: !_saving,
-      autofocus: index == 0,
+      autofocus: index == 0 && widget.initialDrafts.isEmpty,
       maxLength: 100,
       textCapitalization: TextCapitalization.sentences,
       decoration: const InputDecoration(
@@ -281,6 +306,7 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
             tilePadding: EdgeInsets.zero,
             childrenPadding: const EdgeInsets.only(bottom: 8),
             maintainState: true,
+            initiallyExpanded: row.date != null,
             title: const Text('Storage & date'),
             subtitle: Text(
               '${row.storage} · ${row.date == null ? 'Date unknown' : row.date != null && row.time != null ? '${BatchDraft.dateOnly(row.date!)} ${BatchDraft.timeOnly(row.time!.hour, row.time!.minute)}' : BatchDraft.dateOnly(row.date!)}',
@@ -390,6 +416,41 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
     });
   }
 
+  Future<void> _scanLabel() async {
+    if (_saving) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final draft = await Navigator.of(context).push<OcrGroceryDraft>(
+      MaterialPageRoute<OcrGroceryDraft>(
+        fullscreenDialog: true,
+        builder: (_) => ScanLabelScreen(
+          returnDraftOnly: true,
+          ocrService: widget.ocrService,
+          pickImage: widget.pickScanImage ?? pickScanImageFromSource,
+        ),
+      ),
+    );
+    if (!mounted || draft == null) return;
+    setState(() {
+      _error = null;
+      _ocrDrafted = true;
+      final last = _rows.last;
+      final lastUntouched =
+          last.name.text.trim().isEmpty &&
+          last.quantity.text.trim() == '1' &&
+          last.date == null &&
+          last.photo == null;
+      final target = lastUntouched ? last : _DraftRow();
+      target.name.text = draft.name;
+      target.date = draft.printedDate == null
+          ? null
+          : DateTime.tryParse(draft.printedDate!);
+      target.photo = draft.photo;
+      if (!lastUntouched) {
+        _rows.add(target);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
@@ -409,6 +470,23 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
                   const Text(
                     'Use separate entries for different foods or printed dates.',
                   ),
+                  if (_ocrDrafted) ...[
+                    const SizedBox(height: 10),
+                    Card(
+                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(
+                          'Drafted from label scan. Review name, quantity, storage, and printed date before saving.',
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   if (_namesFailed)
                     Row(
@@ -432,6 +510,13 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
                     onPressed: _saving ? null : _addRow,
                     icon: const Icon(Icons.add),
                     label: const Text('Add another food'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    key: const ValueKey('scan-label-button'),
+                    onPressed: _saving ? null : _scanLabel,
+                    icon: const Icon(Icons.document_scanner_outlined),
+                    label: const Text('Scan label (beta)'),
                   ),
                 ],
               ),

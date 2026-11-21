@@ -126,6 +126,15 @@ Executed 2026-11-21: all 76 automated tests passed in the serialized full suite 
 
 Executed 2026-11-21: `flutter analyze` passed with no issues, and all 83 automated tests passed in the serialized full suite (`flutter test -j 1`) covering the new camera-capture and calculated-guidance checks alongside all prior features.
 
+## Milestone 14 — local JSON backup & separate ML Kit OCR experiment
+
+- R50: Export versioned offline JSON backups covering batches (`printed_time`, guidance provenance), optional base64 display photos, append-only events/reversals, detail-edit logs, reminder settings, and preferences.
+- R51: Validate, preview, and atomically import JSON backups via file picker or pasted JSON in Merge (remapped IDs/reversals) or Replace (atomic wipe with preserved append-only triggers) mode; reject corrupt JSON without modifying existing data.
+- R52: Run single-item on-device ML Kit text recognition (`google_mlkit_text_recognition`) isolated behind a web/desktop Sample Mode stub; support multi-side photo scans (name on front, printed date on back/lid) with manufacturing-date filtering and explicit ambiguity confirmation.
+- R53: Keep missing or unreadable printed dates unknown (never inferred from appearance); hand off OCR results only as editable drafts into `AddGroceriesScreen` without auto-saving and keep manual entry resilient if OCR fails or is cancelled.
+
+Executed 2026-11-21: `flutter analyze` passed (`No issues found!`) and `flutter test -j 1` passed (110/110 tests including `test/backup_test.dart` and `test/ocr_experiment_test.dart`).
+
 ## Remaining core completion work
 
-Priority 1 (Android debug build, physical-phone startup, core/photo/notification acceptance) is complete. Remaining Priority 2 tasks are tracked in `plans/Remaining Work and Recommendations.md` and `plans/Requirement Traceability and Evaluation.md`: re-checking R45–R49 on physical device, timing sheet, user evaluation/questionnaire, release signing/artifact verification, and final submission write-up. Image-based food/date recognition remains separate/on hold.
+Priority 1 (Android debug build, physical-phone startup, core/photo/notification acceptance) is complete. Remaining Priority 2 tasks are tracked in `plans/Remaining Work and Recommendations.md` and `plans/Requirement Traceability and Evaluation.md`: re-checking R45–R53 on physical Android release APK (including live ML Kit camera OCR + JSON file export/import), timing sheet, user evaluation/questionnaire, release signing/artifact verification, and final submission write-up.

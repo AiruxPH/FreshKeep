@@ -1,7 +1,7 @@
 # FreshKeep — Requirement Traceability, Defect Log, Timing & Release Prep
 
-Updated: 2026-11-21 · App version: `1.0.0+1` · Application ID: `com.freshkeep.freshkeep` · Schema: v7  
-Automated verification: `flutter analyze` (0 issues), `flutter test -j 1` (93/93 passing).  
+Updated: 2026-11-21 · App version: `1.0.0+1` · Application ID: `com.freshkeep.freshkeep` · Schema: v8  
+Automated verification: `flutter analyze` (0 issues), `flutter test -j 1` (110/110 passing).  
 Note: Automated/browser checks and physical-device checks are recorded in separate columns; participant/user-study results must be reported separately from developer tests.
 
 ---
@@ -59,8 +59,12 @@ Note: Automated/browser checks and physical-device checks are recorded in separa
 | R47 | M13 | Direct camera capture (`Take photo`) + `retrieveLostData` recovery with 5 MB/codec checks | `test/food_photo_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
 | R48 | M13 | Custom FreshKeep botanical launcher icon across Android adaptive/legacy mipmaps and web icons | Icon asset verification script (15 PNGs) | Pass | Pending re-check on device | 1.0.0+1 |
 | R49 | M13 | Explicit calculated guidance dates (v6→v7 migration, audit log, printed-date priority, reminders) | `test/calculated_guidance_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
+| R50 | M14 | Offline local JSON backup export (batches, time, guidance, optional photos, events, edits, reminders, prefs) | `test/backup_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
+| R51 | M14 | Validate, preview, and atomically import JSON backups (Merge/Replace); reject corrupt JSON cleanly | `test/backup_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
+| R52 | M14 | Isolated on-device single-item ML Kit OCR + multi-side scan merging + honest web/desktop sample mode | `test/ocr_experiment_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
+| R53 | M14 | Exclude MFG dates, flag ambiguous/month-only dates, keep unknown if missing, draft-only review handoff | `test/ocr_experiment_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
 
-**Automated Pass Rate:** 49 / 49 requirements covered · 93 / 93 automated tests passing (100%).
+**Automated Pass Rate:** 53 / 53 requirements covered · 110 / 110 automated tests passing (100%).
 
 ---
 
@@ -72,6 +76,7 @@ Record every defect observed during device testing or user evaluation with its b
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | D-001 | 1.0.0+1 | 2026-11-21 | Low | Migration Tests | Legacy v1–v4 test fixtures failed with `duplicate column name: printed_time` after schema v6 added `printed_time` to `onCreate`. Fixed by dropping `printed_time` in legacy fixtures to match old schemas. | Closed | 1.0.0+1 · 76/76 Pass |
 | D-002 | 1.0.0+1 | 2026-11-21 | High | Release Notifications | R8 resource shrinking stripped `@drawable/ic_stat_freshkeep` (`resources.txt:136`), causing release APK notification init/test to fail even when OS permission was enabled. Fixed by adding `android/app/src/main/res/raw/keep.xml` + `areNotificationsEnabled()` pre-check & `openSettings()`. | Closed | Pending release APK retest |
+| D-003 | 1.0.0+1 | 2026-11-21 | Medium | OCR Date Parser | `_monthNameDayRegex` allowed optional spacing before the year (`*`), misparsing `'NOV 2026'` as `'Nov 20, 2026'`; and rejected 3-part invalid dates like `'30/02/2027'` weren't claiming their span before month-only matching. Fixed by requiring `+` separator before year and claiming 3-part numeric spans. | Closed | 1.0.0+1 · 110/110 Pass |
 
 ---
 
@@ -132,3 +137,17 @@ flutter build appbundle --release
 Expected outputs:
 - Release APK: `build/app/outputs/flutter-apk/app-release.apk`
 - Release AAB: `build/app/outputs/bundle/release/app-release.aab`
+
+---
+
+## 6. ML Kit OCR Experiment — Held-Out Packaged Item Evaluation Sheet
+
+Record on-device results separately from the core inventory requirements (plan Sections 8–9), comparing training/known labels and held-out grocery packaging on a physical Android phone.
+
+| Sample # | Item Type (Training / Held-out) | Sides Scanned | Raw Extracted Name vs Actual | Raw Extracted Date vs Actual | Ambiguity / Warning Fired? | User Edits Needed | Scan-to-Draft Time (s) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | | | | | | | |
+| 2 | | | | | | | |
+| 3 | | | | | | | |
+| 4 | | | | | | | |
+| 5 | | | | | | | |

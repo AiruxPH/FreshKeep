@@ -4,7 +4,7 @@ Reviewed: 2026-11-21. This is the current remaining-work list; older plan milest
 
 ## Android build & device status
 
-**Priority 1 (debug APK build, physical-phone startup, and physical-phone core/photo/notification acceptance) is complete.** Schema is now v7 (including optional `printed_time`, direct camera capture + lost-picker recovery, custom Android/web launcher icons, and calculated storage-guidance dates), and the full automated test suite + `flutter analyze` pass.
+**Priority 1 (debug APK build, physical-phone startup, and physical-phone core/photo/notification acceptance) is complete.** Schema is now **v8** (`printed_time`, direct camera capture + lost-picker recovery, custom Android/web launcher icons, calculated storage-guidance dates, splash/first-open onboarding, redesigned dashboard & waste search/filter, plus optional offline Local JSON Backup and separate ML Kit OCR experiment), and the full automated test suite (`110/110`) + `flutter analyze` pass.
 
 Release signing is now wired in `android/app/build.gradle.kts` via `android/key.properties` (ignored in `.gitignore`, falling back to debug signing when `key.properties` is absent). Creating the keystore and building the final signed release artifact remains under Priority 2.
 
@@ -67,17 +67,13 @@ The offline catalog already provides 16 foods and 17 condition-specific referenc
 
 Recommendation: confirm this requirement before implementing it. The reference-only milestone is complete. Do not calculate dates from an assumed purchase/opening/storage date.
 
-### Image-based grocery entry: separate workstream
+### Image-based grocery entry: separate single-item experiment (Implemented; device eval pending)
 
-Display photos are implemented. Food recognition and printed-date extraction are not implemented and remain separate from core Android readiness.
-
-- [ ] Decide single-item versus batch capture, target foods and the expected input photos with the image-processing workstream.
-- [ ] Prototype food/product-name recognition and printed-date OCR separately. Names and dates may require different photos.
-- [ ] Define the handoff into editable grocery drafts, including cancellation, uncertainty and failure behavior. Keep manual entry available.
-- [ ] For multi-item capture, test matching each recognized item to the correct visible date; do not assume proximity is reliable.
-- [ ] Evaluate held-out examples, extraction errors, user corrections and task time.
-
-Recommendation: start with a single packaged item and a review screen. Missing/unreadable dates stay unknown; appearance must not supply an expiration date. Recognition integration should follow a stable Android core build.
+- [x] Start with single packaged-item capture supporting multi-side scans (e.g. front label name + back panel date).
+- [x] Separate food-name drafting from printed-date OCR; ignore manufacturing dates (`MFG`/`MFD`/`PROD`/`PKD`), keep missing/ambiguous dates unknown until confirmed, and never infer dates from appearance.
+- [x] Hand off all OCR results strictly as editable drafts into `AddGroceriesScreen`, keeping manual entry intact on failure/cancellation and isolating ML Kit behind a web/desktop Sample Mode stub.
+- [ ] Evaluate on held-out packaged items on the physical Android phone, logging raw extraction errors, user corrections, and task timing in `plans/Requirement Traceability and Evaluation.md`.
+- Future stretch (not needed for core delivery): multi-item capture & reliable per-item date association.
 
 ### Direct camera capture: optional convenience
 
@@ -90,8 +86,8 @@ Recommendation: gallery selection is sufficient for the first Android test. Came
 
 1. **Keep web for fast iteration and Android for platform checks.** Continue implementing one feature at a time, then review it. Browser and phone databases are separate; web records do not automatically transfer to the phone.
 2. **Protect the one-month deadline.** Prioritize Android build, notification checks, real-phone usability and evaluation before optional additions.
-3. **Set up Git if not already done.** The last repository check reported that this workspace was not a Git repository. Keep CHANGELOG.md as offline memory, and add version-control commits/checkpoints for source recovery. Do not commit keys or personal test data.
-4. **Consider local export/import later.** No in-app backup/restore feature is implemented. Device-local records and photos can be lost on app/site-data clearing; local backup could help evaluation without introducing cloud sync.
+3. **Git repository is active on GitHub (`https://github.com/AiruxPH/FreshKeep`).** Keep `CHANGELOG.md` updated as offline memory alongside clean Git commits. Never commit keys (`android/key.properties`, `*.jks`, `*.keystore`) or personal evaluation data.
+4. **Local JSON export/import is implemented (`More → Backup & restore`).** Supports offline `.json` export/import (Merge or Replace mode with optional photos) to safeguard device-local records during phone testing and user sessions without introducing cloud sync.
 5. **Review photo storage under a realistic dataset.** The current per-photo cap is 5 MB and original bytes are stored locally. Measure startup, scrolling and storage use before deciding whether thumbnails, compression or lazy image loading are needed.
 6. **Recheck guidance sources before submission.** The FoodKeeper references use a documented historical 2018 chart. Record any source/catalog updates and their implications rather than silently changing durations.
 

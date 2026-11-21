@@ -1,6 +1,6 @@
 # FreshKeep
 
-Offline grocery inventory, built with Flutter. Implemented: multi-row manual entry with previous-name suggestions, persistent inventory with optional display photos, stock actions, batch history, calendar-based date labels, dashboard, waste log, source-cited storage references and reminder settings/preview. Android notification delivery is implemented but not device-verified. Image processing is a separate workstream.
+Offline grocery inventory, built with Flutter. Repository: <https://github.com/AiruxPH/FreshKeep>. Implemented: multi-row manual entry with previous-name suggestions, persistent inventory with optional display photos (gallery & camera capture), stock actions, batch history, calendar-based date labels & printed-time countdowns, cited & optional calculated storage guidance, dashboard, waste log search/filter, reminder settings/device notifications, offline **Local JSON Backup (export/import)**, and an optional on-device **ML Kit OCR Experiment** for drafting single packaged items into manual review.
 
 ## Run on web
 
@@ -33,7 +33,11 @@ Open **More → Reminders** to choose a daily time, a one- or three-day lead win
 
 Open **More → Storage guidance**, or the guidance link in food details. The offline catalog covers 16 foods with 17 condition-specific references. Search/filter candidates and expand **Source details** for page/section, review date, URL and citation copying. Conditions, durations and source attribution remain visible. Batch context prefills food/storage without assigning a rule. Unsupported combinations receive no estimate; calendar suggestions remain unavailable until rule-specific starting events/dates are recorded. Viewing guidance never changes a printed date, stock or waste. See `plans/Guidance Sources.md` for provenance and the historical FoodKeeper source limitation.
 
-**Dashboard** shows total/in-stock/used-up batch counts, unreversed disposals and quantities separately by pieces, grams and millilitres. **Waste** lists unreversed disposals newest first, with reason, time and batch-history access. Returning from history refreshes the report. Reports cover all recorded time and can be refreshed; they summarize tracked records rather than automatically measured waste.
+**Dashboard** shows total/in-stock/used-up batch counts, date-attention breakdown, top waste reasons, unreversed disposals and quantities separately by pieces, grams and millilitres. **Waste** lists unreversed disposals newest first, with search, unit/reason/date filters, sort modes, and batch-history access. Returning from history refreshes the report. Reports cover all recorded time and can be refreshed; they summarize tracked records rather than automatically measured waste.
+
+Open **More → Backup & restore** to export your inventory, display photos, stock/detail audit histories, guidance links, reminder settings, and preferences to an offline JSON file (or clipboard when under 2 MB), or import an exported JSON file/snippet with a pre-commit count preview and choice of **Merge** or **Replace**. Backups stay device-local with zero cloud sync.
+
+Open **More → Label scanner (OCR experiment)** or tap **Scan label (beta)** inside **Add groceries** to capture one or more sides of a single packaged grocery item using on-device ML Kit Latin text recognition (Android/iOS). Extracted food names and visible printed dates (ignoring manufacturing dates and flagging ambiguous `DD/MM` vs `MM/DD` or month-only dates) always arrive as editable drafts for review and never save automatically or guess expiration dates from appearance. On web and desktop builds, an honest **Sample mode** lets you test multi-side draft review with preset sample label text without claiming real OCR.
 
 ## Verify
 
@@ -50,9 +54,7 @@ UI regression checks additionally cover phone navigation, food visibility, exact
 
 ## Storage and versions
 
-Flutter 3.47.2, Dart 3.13.2, Drift 2.35.3 and drift_flutter 0.3.1 were used for the initial build. Reminders add flutter_local_notifications 22.3.3, timezone 0.11.2 and flutter_timezone 5.1.1. Resolved dependency versions are in `pubspec.lock`. SQL schema version 5 preserves inventory/events/reminder preferences and detail-edit history, and adds local batch photos with photo-change history. Photos use image_picker 1.2.4. Future changes must include a migration rather than clearing saved records. Android now requires API 24+.
-
-The initial Android debug build failed because the disk filled during dependency compilation. No verified APK is available. After recovering space, prioritize web testing; retry APK generation only with sufficient free disk space.
+Flutter 3.47.2, Dart 3.13.2, Drift 2.35.3 and drift_flutter 0.3.1 power local persistence. Reminders use `flutter_local_notifications: 22.3.3`, `timezone: 0.11.2` and `flutter_timezone: 5.1.1`. Media/file helpers and optional extras use `image_picker: 1.2.4`, `file_picker: 13.4.0` and `google_mlkit_text_recognition: 1.0.3` (kept isolated behind a web-safe sample stub). Resolved dependency versions are recorded in `pubspec.lock`. SQL schema is now **v8** (`batches` with `printed_time` & confirmed guidance columns, `batch_photos`, append-only `events` & `batch_edits`, `reminder_settings`, and `app_preferences` for first-open onboarding state). Future changes preserve existing records via migrations rather than clearing user data. Android requires API 24+ (`minSdk = 24`, `compileSdk = 36`, with R8 `keep.xml` and `proguard-rules.pro` rules for release APKs).
 
 `web/drift_worker.js` and `web/sqlite3.wasm` are official artifacts from the matching [Drift 2.35.3 release](https://github.com/simolus3/drift/releases/tag/drift-2.35.3). Update them together when upgrading Drift. See [web database setup](https://drift.simonbinder.eu/platforms/web/).
 
