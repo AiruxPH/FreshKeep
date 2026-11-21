@@ -111,6 +111,13 @@ Executed 2026-11-01: 61 tests passed in the full suite and Flutter analysis pass
 
 Six added automated checks cover photo validation/immutability, persistence/migration, stock/date preservation, transactional rollback, picker cancellation/failure and editor save/cancel. Flutter analysis passed; isolated Chrome verified actual image selection, inventory/details display, full-refresh persistence, cancelled removal and committed removal. Execution details are in CHANGELOG.md. Native picker and Android activity/process recovery remain device-verification work.
 
+## Milestone 12 — optional printed expiry time & hours-left countdown
+
+- R45: Allow selecting an optional printed expiry time (`HH:mm`, gated on having a printed date) in grocery entry and batch editing; display `YYYY-MM-DD HH:mm` and a live `Xh Ym left` countdown (`DateStatus.hoursLeft`) when fewer than 24 h remain on the same day, transitioning to `Past date` once elapsed.
+- R46: Persist `printed_time` via non-destructive schema v5→v6 migration without losing existing records; fire expiry-day reminders (`lead == 0`) at `printedTime` while keeping lead-day alerts at the user's daily reminder time; sort same-date batches by earliest time first.
+
+Executed 2026-11-21: all 76 automated tests passed in the serialized full suite (`flutter test -j 1`) and `flutter analyze` passed with no issues. Added validation, `hoursLeft`/countdown widget, timed reminder, and v5→v6 migration tests, and updated legacy v1–v4 migration fixtures.
+
 ## Remaining core completion work
 
-Complete Android build/device checks when disk/device access is ready; execute requirement-level acceptance tests and polish before evaluation. Calculated guidance dates still require separately persisted rule/condition/anchor inputs; the current guidance catalog remains reference-only. No recognition work is included in this phase.
+Priority 1 (Android debug build, physical-phone startup, core/photo/notification acceptance) is complete. Remaining Priority 2 tasks are tracked in `plans/Remaining Work and Recommendations.md` and `plans/Requirement Traceability and Evaluation.md`: timing sheet, user evaluation/questionnaire, release signing/artifact verification, and final submission write-up. Calculated guidance dates and image recognition remain separate/unconfirmed scope.

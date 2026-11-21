@@ -1,5 +1,16 @@
 # Offline change log
 
+## 2026-11-21 (14:56 +08:00)
+
+- **Reason for change:** User confirmed Priority 1 (Android debug build, physical-phone startup, and physical-phone core/photo/notification acceptance) is complete and requested executing Priority 2 preparation tasks.
+- **Documentation & Evaluation (`plans/Requirement Traceability and Evaluation.md`, `plans/Remaining Work and Recommendations.md`, `plans/Core Feature Checklist.md`):**
+  - Created `plans/Requirement Traceability and Evaluation.md` with the full R1–R46 requirement traceability matrix (including M12 printed-time requirements R45–R46), build-specific defect log, physical-device timing sheet template, user evaluation summary template, and Android release-signing instructions.
+  - Updated `plans/Remaining Work and Recommendations.md` to mark Priority 1 complete and reflect schema v6, 76 passing automated tests, and the new traceability/signing progress.
+  - Updated `plans/Core Feature Checklist.md` with Milestone 12 (R45–R46) and verified test results.
+- **Android release signing setup (`android/app/build.gradle.kts`, `.gitignore`):**
+  - Wired `android/app/build.gradle.kts` to load `android/key.properties` for release signing when present, with safe fallback to debug signing when absent.
+  - Added `/android/key.properties`, `*.jks`, and `*.keystore` to `.gitignore` to keep signing secrets out of source control.
+
 ## 2026-11-21 (14:45 +08:00)
 
 - **Reason for change:** User requested optional expiry time-of-day (hours and minutes) input alongside printed dates so foods with only hours remaining can show an accurate hours-left countdown and trigger expiry-day reminders at the exact printed time.
