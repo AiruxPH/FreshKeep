@@ -93,6 +93,16 @@ void main() {
     expect(leapMonthOnly.printedDate, isNull);
     expect(leapMonthOnly.ambiguousCandidates.single.isoDate, '2028-02-29');
 
+    final shortMonthOnly = parsePrintedDate('EXP 11/26');
+    expect(shortMonthOnly.printedDate, isNull);
+    expect(shortMonthOnly.isMonthOnly, isTrue);
+    expect(shortMonthOnly.ambiguousCandidates.single.isoDate, '2026-11-30');
+
+    // Uncued MM/YY must stay unknown so random codes/ratios do not match.
+    final uncuedShort = parsePrintedDate('LOT 11/26');
+    expect(uncuedShort.printedDate, isNull);
+    expect(uncuedShort.ambiguousCandidates, isEmpty);
+
     // Invalid calendar date (Feb 30) must NOT fall back to 02/2027 month-only!
     final invalid = parsePrintedDate('EXP 30/02/2027');
     expect(invalid.printedDate, isNull);

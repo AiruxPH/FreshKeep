@@ -100,11 +100,21 @@ class _ApplyGuidanceContentState extends State<_ApplyGuidanceContent> {
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: () async {
+                  final now = DateTime.now();
+                  final today = DateTime(now.year, now.month, now.day);
+                  final maxDate =
+                      _anchorDate != null && _anchorDate!.isAfter(today)
+                      ? _anchorDate!
+                      : today;
+                  final initial =
+                      _anchorDate != null && _anchorDate!.isAfter(maxDate)
+                      ? maxDate
+                      : (_anchorDate ?? today);
                   final picked = await showDatePicker(
                     context: context,
-                    initialDate: _anchorDate ?? DateTime.now(),
+                    initialDate: initial,
                     firstDate: DateTime(2000),
-                    lastDate: DateTime(2100, 12, 31),
+                    lastDate: maxDate,
                   );
                   if (picked != null && mounted) {
                     setState(() => _anchorDate = picked);

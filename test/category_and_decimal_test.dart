@@ -19,6 +19,7 @@ import 'package:freshkeep/domain/quantity/validate_quantity.dart';
 import 'package:freshkeep/domain/stock_event.dart';
 import 'package:freshkeep/domain/suggest_food_category.dart';
 import 'package:freshkeep/inventory_screen.dart';
+import 'package:freshkeep/widgets/category_recommendation_banner.dart';
 import 'package:freshkeep/widgets/local_day_scope.dart';
 
 void main() {
@@ -101,6 +102,10 @@ void main() {
       expect(suggestFoodCategory('Tomato ketchup'), 'Condiments & Sauces');
       expect(suggestFoodCategory('Eggs'), 'Dairy & Eggs');
       expect(suggestFoodCategory('Banana'), 'Produce');
+      expect(suggestFoodCategory('Bananas'), 'Produce');
+      expect(suggestFoodCategory('Tomatoes'), 'Produce');
+      expect(suggestFoodCategory('Mangoes'), 'Produce');
+      expect(suggestFoodCategory('Corned beef'), 'Canned & Dry');
       expect(suggestFoodCategory('Rice'), 'Grains & Bakery');
       expect(suggestFoodCategory('Unknown XYZ'), isNull);
 
@@ -505,6 +510,37 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Cheddar'), findsOneWidget);
       expect(find.text('Bananas'), findsNothing);
+    });
+
+    testWidgets('CategoryRecommendationBanner renders cleanly at 2x text scale on narrow phone width', (tester) async {
+      String? applied;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(320, 640),
+              textScaler: TextScaler.linear(2.0),
+            ),
+            child: Scaffold(
+              body: SizedBox(
+                width: 280,
+                child: CategoryRecommendationBanner(
+                  foodName: 'Soy sauce',
+                  selectedCategory: 'Beverages',
+                  enabled: true,
+                  onApply: (v) => applied = v,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Use Condiments & Sauces'), findsOneWidget);
+      await tester.tap(find.text('Use Condiments & Sauces'));
+      await tester.pumpAndSettle();
+      expect(applied, 'Condiments & Sauces');
     });
   });
 }

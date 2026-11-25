@@ -34,25 +34,37 @@ class CategoryRecommendationBanner extends StatelessWidget {
         color: scheme.secondaryContainer,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(
-            Icons.auto_awesome_outlined,
-            size: 18,
-            color: scheme.onSecondaryContainer,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              warning,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSecondaryContainer,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(
+                  Icons.auto_awesome_outlined,
+                  size: 18,
+                  color: scheme.onSecondaryContainer,
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  warning,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSecondaryContainer,
+                  ),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: enabled ? () => onApply(suggested) : null,
-            child: Text('Use $suggested'),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: enabled ? () => onApply(suggested) : null,
+              child: Text('Use $suggested'),
+            ),
           ),
         ],
       ),

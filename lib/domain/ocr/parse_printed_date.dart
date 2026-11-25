@@ -93,6 +93,10 @@ final RegExp _monthYearNumericRegex = RegExp(
   r'\b(?:(\d{1,2})[/\.\-](20\d{2})|(20\d{2})[/\.\-](\d{1,2}))\b',
 );
 
+final RegExp _monthYearShortNumericRegex = RegExp(
+  r'\b(\d{1,2})[/\.\-](\d{2})\b',
+);
+
 final RegExp _monthNameYearRegex = RegExp(
   r'\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[\s,\-/\.]*(\d{2,4})\b',
   caseSensitive: false,
@@ -370,6 +374,34 @@ List<_ExtractedDate> _extractLineDates(String line, _LineCue inheritedCue) {
     results.add(
       _ExtractedDate(
         lineCue: _cueForOffset(line, match.start, inheritedCue),
+        isMonthOnly: true,
+        rawMatch: match.group(0)!,
+        candidates: [
+          OcrDateCandidate(
+            isoDate: endIso,
+            label:
+                '$endIso (end of ${_monthShortNames[month]} $year — verify packaging)',
+            rawMatch: match.group(0)!,
+            note: 'Month-only label',
+          ),
+        ],
+      ),
+    );
+  }
+
+  for (final match in _monthYearShortNumericRegex.allMatches(line)) {
+    if (overlaps(match.start, match.end)) continue;
+    final cue = _cueForOffset(line, match.start, inheritedCue);
+    if (cue != _LineCue.expiry) continue;
+    final month = int.parse(match.group(1)!);
+    final rawYear = int.parse(match.group(2)!);
+    if (month < 1 || month > 12 || rawYear < 20 || rawYear > 50) continue;
+    final year = 2000 + rawYear;
+    final endIso = _endOfMonthIso(year, month);
+    claim(match.start, match.end);
+    results.add(
+      _ExtractedDate(
+        lineCue: cue,
         isMonthOnly: true,
         rawMatch: match.group(0)!,
         candidates: [

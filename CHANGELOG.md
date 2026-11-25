@@ -1,5 +1,14 @@
 # Offline change log
 
+## 2026-11-26 (00:25 +08:00)
+
+- **Reason for change:** Resolved 4 additional edge cases identified during secondary QA review (plural/corned-beef food matching, narrow/2× text overflow risk in `CategoryRecommendationBanner`, future starting dates in storage-guidance calculations, and 2-digit `EXP MM/YY` packaging prints in OCR).
+- **Plural & compound food matching (`lib/domain/suggest_food_category.dart`):** Added curated plural forms (`bananas`, `tomatoes`, `mangoes`, etc.) and mapped `'corned beef'` to `Canned & Dry` ahead of `Meat & Seafood`.
+- **Overflow-safe recommendation banner (`lib/widgets/category_recommendation_banner.dart`):** Stacked warning text above a right-aligned action button in a `Column` so long labels such as `Use Condiments & Sauces` render cleanly at 2× font scale on narrow phones.
+- **Guidance starting-date cap (`lib/widgets/guidance/apply_guidance_sheet.dart`):** Capped `showDatePicker.lastDate` to today (preserving an existing saved date only if already later) so starting events cannot accidentally be set in the future.
+- **Cued 2-digit `MM/YY` OCR support (`lib/domain/ocr/parse_printed_date.dart`):** Added `_monthYearShortNumericRegex` requiring an active expiry cue (`EXP`, `BB`, `BEST BEFORE`) and year `20..50` to emit an explicit month-only confirmation candidate while ignoring uncued `MM/YY` strings.
+- **Verification (`test/category_and_decimal_test.dart`, `test/ocr_experiment_test.dart`):** Added unit and 2×-text widget coverage, plus `flutter analyze` and `flutter test -j 1`.
+
 ## 2026-11-26 (00:08 +08:00)
 
 - **Reason for change:** Hardened edge cases identified during code review and added offline context-aware food-to-category recommendations with mismatch warnings so items stay accurately categorized without blocking manual overrides.
