@@ -135,6 +135,13 @@ Executed 2026-11-21: `flutter analyze` passed with no issues, and all 83 automat
 
 Executed 2026-11-21: `flutter analyze` passed (`No issues found!`) and `flutter test -j 1` passed (110/110 tests including `test/backup_test.dart` and `test/ocr_experiment_test.dart`).
 
+## Milestone 15 — food categories & decimal measured units
+
+- R54: Assign a curated offline food category (`Produce`, `Meat & Seafood`, `Dairy & Eggs`, `Grains & Bakery`, `Canned & Dry`, `Beverages`, `Leftovers & Prepared`, `Condiments & Sauces`, `Other`) per batch; display on cards/details, edit with before/after audit history, search by food name or category, and filter by category in Inventory.
+- R55: Allow positive decimal quantities (up to 2 decimal places) for measured units (`g`, `mL`) using exact hundredths arithmetic across entry, consumption, disposal, correction, undo, reports, and JSON backup while keeping `pieces` strictly whole integers; migrate v8→v9 losslessly.
+
+Executed 2026-11-25: `flutter analyze` passed (`No issues found!`) and the full serialized test suite (`flutter test -j 1`) passed including `test/category_and_decimal_test.dart`.
+
 ## Remaining core completion work
 
-Priority 1 (Android debug build, physical-phone startup, core/photo/notification acceptance) is complete. Remaining Priority 2 tasks are tracked in `plans/Remaining Work and Recommendations.md` and `plans/Requirement Traceability and Evaluation.md`: re-checking R45–R53 on physical Android release APK (including live ML Kit camera OCR + JSON file export/import), timing sheet, user evaluation/questionnaire, release signing/artifact verification, and final submission write-up.
+Priority 1 (Android debug build, physical-phone startup, core/photo/notification acceptance) is complete. Remaining Priority 2 tasks are tracked in `plans/Remaining Work and Recommendations.md` and `plans/Requirement Traceability and Evaluation.md`: re-checking R45–R55 on the physical Android split-ABI release APK (including live ML Kit camera OCR + JSON file export/import), timing sheet, user evaluation/questionnaire, release signing/artifact verification, and final submission write-up.

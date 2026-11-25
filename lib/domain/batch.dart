@@ -1,26 +1,34 @@
+import 'food_category.dart';
 import 'food_photo.dart';
 import 'guidance/find_guidance_rule.dart';
 import 'guidance/guidance_selection.dart';
+import 'quantity/format_quantity.dart';
+import 'quantity/quantity_math.dart';
+import 'quantity/validate_quantity.dart';
 
 class BatchDraft {
   BatchDraft({
     required String name,
-    required this.quantity,
+    required num quantity,
     required this.unit,
     required this.storage,
+    String category = FoodCategory.defaultCategory,
     this.printedDate,
     this.printedTime,
     this.photo,
     this.guidance,
-  }) : name = name.trim() {
+  }) : name = name.trim(),
+       category = FoodCategory.normalize(category),
+       quantity = normalizeQuantity(quantity) {
     if (this.name.isEmpty || this.name.length > 100) {
       throw ArgumentError('Enter a food name of 1 to 100 characters.');
     }
-    if (quantity < 1 || quantity > 1000000000) {
-      throw ArgumentError('Quantity must be between 1 and 1,000,000,000.');
-    }
     if (!units.contains(unit) || !locations.contains(storage)) {
       throw ArgumentError('Choose a supported unit and storage location.');
+    }
+    final quantityError = validateQuantityForUnit(quantity, unit);
+    if (quantityError != null) {
+      throw ArgumentError(quantityError);
     }
     if (printedDate != null) {
       final parsed = DateTime.tryParse(printedDate!);
@@ -50,10 +58,12 @@ class BatchDraft {
   }
   static const units = ['pieces', 'g', 'mL'];
   static const locations = ['Pantry', 'Fridge', 'Freezer'];
+  static const categories = FoodCategory.all;
   final String name;
-  final int quantity;
+  final double quantity;
   final String unit;
   final String storage;
+  final String category;
   final String? printedDate;
 
   /// Optional expiry time stored as "HH:mm". Only valid when [printedDate]
@@ -78,25 +88,26 @@ class BatchDraft {
   }
 }
 
-String quantityLabel(int quantity, String unit) =>
-    '$quantity ${unit == 'pieces' && quantity.abs() == 1 ? 'piece' : unit}';
+String quantityLabel(num quantity, String unit) =>
+    formatQuantityLabel(quantity, unit);
 
 class InventoryBatch {
-  const InventoryBatch({
+  InventoryBatch({
     required this.id,
     required this.draft,
-    required this.remaining,
-  });
+    required num remaining,
+  }) : remaining = normalizeQuantity(remaining);
   final int id;
   final BatchDraft draft;
-  final int remaining;
-  bool get depleted => remaining == 0;
+  final double remaining;
+  bool get depleted => toScaledUnits(remaining) <= 0;
 }
 
 class BatchDetailsDraft {
   factory BatchDetailsDraft({
     required String name,
     required String storage,
+    String category = FoodCategory.defaultCategory,
     String? printedDate,
     String? printedTime,
   }) {
@@ -105,12 +116,14 @@ class BatchDetailsDraft {
       quantity: 1,
       unit: 'pieces',
       storage: storage,
+      category: category,
       printedDate: printedDate,
       printedTime: printedTime,
     );
     return BatchDetailsDraft._(
       checked.name,
       checked.storage,
+      checked.category,
       checked.printedDate,
       checked.printedTime,
     );
@@ -118,16 +131,19 @@ class BatchDetailsDraft {
   const BatchDetailsDraft._(
     this.name,
     this.storage,
+    this.category,
     this.printedDate,
     this.printedTime,
   );
   final String name;
   final String storage;
+  final String category;
   final String? printedDate;
   final String? printedTime;
   bool matches(BatchDraft other) =>
       name == other.name &&
       storage == other.storage &&
+      category == other.category &&
       printedDate == other.printedDate &&
       printedTime == other.printedTime;
 }

@@ -27,7 +27,7 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
   InventoryBatch? _batch;
   List<StockEvent> _history = [];
   List<BatchEdit> _edits = [];
-  int _waste = 0;
+  double _waste = 0;
   bool _busy = true;
   String? _error;
   @override
@@ -96,6 +96,7 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
         BatchDetailsDraft(
           name: current.draft.name,
           storage: current.draft.storage,
+          category: current.draft.category,
           printedDate: current.draft.printedDate,
           printedTime: current.draft.printedTime,
         ),
@@ -235,6 +236,10 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
                   Text(
                     'Storage: ${edit.before.storage} → ${edit.after.storage}',
                   ),
+                if (edit.before.category != edit.after.category)
+                  Text(
+                    'Category: ${edit.before.category} → ${edit.after.category}',
+                  ),
                 if (edit.before.printedDate != edit.after.printedDate)
                   Text(
                     'Printed date: ${edit.before.printedDate ?? 'Unknown'} → ${edit.after.printedDate ?? 'Unknown'}',
@@ -297,7 +302,9 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 8),
-                  Text(_batch!.draft.storage),
+                  Text(
+                    '${_batch!.draft.storage} · ${_batch!.draft.category}',
+                  ),
                   if (_batch!.depleted)
                     const Padding(
                       padding: EdgeInsets.only(top: 8),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'data/inventory_database.dart';
 import 'domain/batch.dart';
+import 'domain/quantity/validate_quantity.dart';
 import 'domain/stock_event.dart';
 
 Future<int?> showStockAction(
@@ -71,10 +72,14 @@ class _StockActionDialogState extends State<StockActionDialog> {
       _error = null;
     });
     try {
+      final parsed = parseQuantityInput(
+        _quantity.text,
+        widget.batch.draft.unit,
+      )!;
       final id = await widget.database.recordAction(
         widget.batch.id,
         widget.action,
-        int.parse(_quantity.text.trim()),
+        parsed,
         reason: _reason.text,
         expectedRemaining: widget.batch.remaining,
       );
@@ -124,17 +129,29 @@ class _StockActionDialogState extends State<StockActionDialog> {
             controller: _quantity,
             enabled: !_saving,
             autofocus: true,
-            keyboardType: TextInputType.number,
+            keyboardType: unitAllowsDecimals(widget.batch.draft.unit)
+                ? const TextInputType.numberWithOptions(decimal: true)
+                : TextInputType.number,
             decoration: InputDecoration(
               labelText: _correct ? 'Actual amount left' : 'Quantity',
               suffixText: widget.batch.draft.unit,
               errorMaxLines: 3,
             ),
             validator: (value) {
-              final quantity = int.tryParse(value?.trim() ?? '');
-              if (quantity == null) return 'Enter a whole number.';
+              final unit = widget.batch.draft.unit;
+              final quantity = parseQuantityInput(value ?? '', unit);
+              if (quantity == null) {
+                return unitAllowsDecimals(unit)
+                    ? 'Enter a valid number (up to 2 decimal places).'
+                    : 'Enter a whole number.';
+              }
               try {
-                stockDelta(widget.action, quantity, widget.batch.remaining);
+                stockDelta(
+                  widget.action,
+                  quantity,
+                  widget.batch.remaining,
+                  unit: unit,
+                );
               } on StockValidationException catch (error) {
                 return error.message;
               }

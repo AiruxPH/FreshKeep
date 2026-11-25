@@ -5,15 +5,18 @@ import 'package:drift_flutter/drift_flutter.dart';
 
 import '../domain/backup/backup_models.dart';
 import '../domain/batch.dart';
+import '../domain/food_category.dart';
 import '../domain/food_photo.dart';
 import '../domain/guidance/find_guidance_rule.dart';
 import '../domain/guidance/guidance_selection.dart';
+import '../domain/quantity/quantity_math.dart';
 import '../domain/recent_stock_action.dart';
 import '../domain/stock_event.dart';
 import '../domain/inventory_report.dart';
 import '../domain/reminder.dart';
 import 'backup/export_database_backup.dart';
 import 'backup/import_database_backup.dart';
+import 'migrate_v9_categories_and_decimals.dart';
 
 /// Explicit SQL for the initial schema, with versioned migrations.
 class InventoryDatabase extends GeneratedDatabase {
@@ -41,7 +44,7 @@ class InventoryDatabase extends GeneratedDatabase {
             ),
       );
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
   @override
@@ -51,9 +54,10 @@ class InventoryDatabase extends GeneratedDatabase {
     CREATE TABLE batches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 100),
-      starting_qty INTEGER NOT NULL CHECK(starting_qty BETWEEN 1 AND 1000000000),
+      starting_qty REAL NOT NULL CHECK(starting_qty > 0 AND starting_qty <= 1000000000),
       unit TEXT NOT NULL CHECK(unit IN ('pieces', 'g', 'mL')),
       storage TEXT NOT NULL CHECK(storage IN ('Pantry', 'Fridge', 'Freezer')),
+      category TEXT NOT NULL DEFAULT 'Other',
       printed_date TEXT,
       date_source TEXT NOT NULL CHECK(date_source IN ('printed', 'unknown')),
       printed_time TEXT,
@@ -72,49 +76,61 @@ class InventoryDatabase extends GeneratedDatabase {
       await _createAppPreferences();
     },
     onUpgrade: (_, from, to) async {
-      await transaction(() async {
-        if (from < 2) await _createEvents();
-        if (from < 3) await _createReminderSettings();
-        if (from < 4) await _createBatchEdits();
-        if (from < 5) {
-          await _createBatchPhotos();
-          if (from >= 4) {
+      if (from < 9) {
+        await customStatement('PRAGMA foreign_keys = OFF');
+      }
+      try {
+        await transaction(() async {
+          if (from < 2) await _createEvents();
+          if (from < 3) await _createReminderSettings();
+          if (from < 4) await _createBatchEdits();
+          if (from < 5) {
+            await _createBatchPhotos();
+            if (from >= 4) {
+              await customStatement(
+                'ALTER TABLE batch_edits ADD COLUMN photo_change TEXT',
+              );
+            }
+          }
+          if (from < 6) {
             await customStatement(
-              'ALTER TABLE batch_edits ADD COLUMN photo_change TEXT',
+              'ALTER TABLE batches ADD COLUMN printed_time TEXT',
             );
           }
-        }
-        if (from < 6) {
-          await customStatement(
-            'ALTER TABLE batches ADD COLUMN printed_time TEXT',
-          );
-        }
-        if (from < 7) {
-          await customStatement(
-            'ALTER TABLE batches ADD COLUMN guidance_rule_id TEXT',
-          );
-          await customStatement(
-            'ALTER TABLE batches ADD COLUMN guidance_catalog_version TEXT',
-          );
-          await customStatement(
-            'ALTER TABLE batches ADD COLUMN guidance_anchor_event TEXT',
-          );
-          await customStatement(
-            'ALTER TABLE batches ADD COLUMN guidance_anchor_date TEXT',
-          );
-          await customStatement(
-            'ALTER TABLE batches ADD COLUMN suggested_date TEXT',
-          );
-          if (from >= 4) {
+          if (from < 7) {
             await customStatement(
-              'ALTER TABLE batch_edits ADD COLUMN guidance_change TEXT',
+              'ALTER TABLE batches ADD COLUMN guidance_rule_id TEXT',
             );
+            await customStatement(
+              'ALTER TABLE batches ADD COLUMN guidance_catalog_version TEXT',
+            );
+            await customStatement(
+              'ALTER TABLE batches ADD COLUMN guidance_anchor_event TEXT',
+            );
+            await customStatement(
+              'ALTER TABLE batches ADD COLUMN guidance_anchor_date TEXT',
+            );
+            await customStatement(
+              'ALTER TABLE batches ADD COLUMN suggested_date TEXT',
+            );
+            if (from >= 4) {
+              await customStatement(
+                'ALTER TABLE batch_edits ADD COLUMN guidance_change TEXT',
+              );
+            }
           }
+          if (from < 8) {
+            await _createAppPreferences();
+          }
+          if (from < 9) {
+            await migrateToV9CategoriesAndDecimals(this, from: from);
+          }
+        });
+      } finally {
+        if (from < 9) {
+          await customStatement('PRAGMA foreign_keys = ON');
         }
-        if (from < 8) {
-          await _createAppPreferences();
-        }
-      });
+      }
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
   );
@@ -158,7 +174,8 @@ class InventoryDatabase extends GeneratedDatabase {
       '''CREATE TABLE batch_edits (
       id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id INTEGER NOT NULL REFERENCES batches(id),
       old_name TEXT NOT NULL, new_name TEXT NOT NULL, old_storage TEXT NOT NULL, new_storage TEXT NOT NULL,
-      old_date TEXT, new_date TEXT, created_at TEXT NOT NULL, photo_change TEXT, guidance_change TEXT)''',
+      old_date TEXT, new_date TEXT, created_at TEXT NOT NULL, photo_change TEXT, guidance_change TEXT,
+      old_category TEXT NOT NULL DEFAULT 'Other', new_category TEXT NOT NULL DEFAULT 'Other')''',
     );
     await customStatement(
       'CREATE INDEX batch_edits_batch ON batch_edits(batch_id)',
@@ -183,6 +200,7 @@ class InventoryDatabase extends GeneratedDatabase {
     final current = (await loadBatch(id)).draft;
     if (current.name != expected.name ||
         current.storage != expected.storage ||
+        current.category != expected.category ||
         current.printedDate != expected.printedDate ||
         current.printedTime != expected.printedTime) {
       throw const StockValidationException(
@@ -239,11 +257,12 @@ class InventoryDatabase extends GeneratedDatabase {
         : 'Guidance updated: ${findGuidanceRule(guidance.ruleId)?.food ?? guidance.ruleId} (suggested ${guidance.suggestedDate})';
     if (changedPhoto) await _writePhoto(id, photo);
     await customStatement(
-      '''UPDATE batches SET name=?,storage=?,printed_date=?,date_source=?,printed_time=?,
+      '''UPDATE batches SET name=?,storage=?,category=?,printed_date=?,date_source=?,printed_time=?,
         guidance_rule_id=?,guidance_catalog_version=?,guidance_anchor_event=?,guidance_anchor_date=?,suggested_date=? WHERE id=?''',
       [
         details.name,
         details.storage,
+        details.category,
         details.printedDate,
         details.printedDate == null ? 'unknown' : 'printed',
         details.printedTime,
@@ -256,14 +275,16 @@ class InventoryDatabase extends GeneratedDatabase {
       ],
     );
     await customStatement(
-      '''INSERT INTO batch_edits(batch_id,old_name,new_name,old_storage,new_storage,old_date,new_date,created_at,photo_change,guidance_change)
-      VALUES(?,?,?,?,?,?,?,?,?,?)''',
+      '''INSERT INTO batch_edits(batch_id,old_name,new_name,old_storage,new_storage,old_category,new_category,old_date,new_date,created_at,photo_change,guidance_change)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',
       [
         id,
         current.name,
         details.name,
         current.storage,
         details.storage,
+        current.category,
+        details.category,
         current.printedDate,
         details.printedDate,
         DateTime.now().toUtc().toIso8601String(),
@@ -287,12 +308,16 @@ class InventoryDatabase extends GeneratedDatabase {
             before: BatchDetailsDraft(
               name: row.read<String>('old_name'),
               storage: row.read<String>('old_storage'),
+              category: row.readNullable<String>('old_category') ??
+                  FoodCategory.defaultCategory,
               printedDate: row.readNullable<String>('old_date'),
               printedTime: null, // audit table stores date only; time not separately audited
             ),
             after: BatchDetailsDraft(
               name: row.read<String>('new_name'),
               storage: row.read<String>('new_storage'),
+              category: row.readNullable<String>('new_category') ??
+                  FoodCategory.defaultCategory,
               printedDate: row.readNullable<String>('new_date'),
               printedTime: null, // audit table stores date only; time not separately audited
             ),
@@ -341,7 +366,7 @@ class InventoryDatabase extends GeneratedDatabase {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       batch_id INTEGER NOT NULL REFERENCES batches(id),
       type TEXT NOT NULL CHECK(type IN ('consume','dispose','correct','reverse')),
-      delta INTEGER NOT NULL CHECK(delta != 0),
+      delta REAL NOT NULL CHECK(delta != 0),
       reason TEXT,
       created_at TEXT NOT NULL,
       reverses_id INTEGER UNIQUE REFERENCES events(id),
@@ -383,12 +408,14 @@ class InventoryDatabase extends GeneratedDatabase {
           : null;
       return InventoryBatch(
         id: row.read<int>('id'),
-        remaining: row.read<int>('remaining'),
+        remaining: normalizeQuantity(row.read<double>('remaining')),
         draft: BatchDraft(
           name: row.read<String>('name'),
-          quantity: row.read<int>('starting_qty'),
+          quantity: normalizeQuantity(row.read<double>('starting_qty')),
           unit: row.read<String>('unit'),
           storage: row.read<String>('storage'),
+          category: row.readNullable<String>('category') ??
+              FoodCategory.defaultCategory,
           printedDate: row.readNullable<String>('printed_date'),
           printedTime: row.readNullable<String>('printed_time'),
           guidance: guidance,
@@ -406,18 +433,24 @@ class InventoryDatabase extends GeneratedDatabase {
   Future<int> recordAction(
     int batchId,
     StockAction action,
-    int quantity, {
+    num quantity, {
     String? reason,
-    int? expectedRemaining,
+    num? expectedRemaining,
   }) =>
       transaction(() async {
         final batch = await loadBatch(batchId);
-        if (expectedRemaining != null && batch.remaining != expectedRemaining) {
+        if (expectedRemaining != null &&
+            toScaledUnits(batch.remaining) != toScaledUnits(expectedRemaining)) {
           throw const StockValidationException(
             'Stock changed while this form was open. Close it and try again.',
           );
         }
-        final delta = stockDelta(action, quantity, batch.remaining);
+        final delta = stockDelta(
+          action,
+          quantity,
+          batch.remaining,
+          unit: batch.draft.unit,
+        );
         final note = reason?.trim();
         if (note != null && note.length > 200) {
           throw const StockValidationException(
@@ -457,7 +490,7 @@ class InventoryDatabase extends GeneratedDatabase {
           (r) => StockEvent(
             id: r.read<int>('id'),
             type: r.read<String>('type'),
-            delta: r.read<int>('delta'),
+            delta: normalizeQuantity(r.read<double>('delta')),
             reason: r.readNullable<String>('reason'),
             createdAt: DateTime.parse(r.read<String>('created_at')),
             reversed: r.read<int>('reversed') != 0,
@@ -476,8 +509,8 @@ class InventoryDatabase extends GeneratedDatabase {
         'This entry cannot be undone again.',
       );
     }
-    final restored = batch.remaining - event.delta;
-    if (restored < 0 || restored > 1000000000) {
+    final restored = subtractQuantities(batch.remaining, event.delta);
+    if (toScaledUnits(restored) < 0 || restored > kMaxQuantity) {
       throw const StockValidationException(
         'Undo would put stock outside the allowed range. Correct the stock first.',
       );
@@ -487,7 +520,7 @@ class InventoryDatabase extends GeneratedDatabase {
       (batch_id,type,delta,reason,created_at,reverses_id) VALUES (?,'reverse',?,?,?,?)''',
       [
         batchId,
-        -event.delta,
+        normalizeQuantity(-event.delta),
         'Undo entry #${event.id}',
         DateTime.now().toUtc().toIso8601String(),
         event.id,
@@ -495,14 +528,14 @@ class InventoryDatabase extends GeneratedDatabase {
     );
   }).then((_) => _changed());
 
-  Future<int> disposedQuantity(int batchId) async {
+  Future<double> disposedQuantity(int batchId) async {
     final row = await customSelect(
       '''SELECT COALESCE(-SUM(e.delta),0) AS qty
       FROM events e WHERE batch_id=? AND type='dispose'
       AND NOT EXISTS(SELECT 1 FROM events r WHERE r.reverses_id=e.id)''',
       variables: [Variable.withInt(batchId)],
     ).getSingle();
-    return row.read<int>('qty');
+    return normalizeQuantity(row.read<double>('qty'));
   }
 
   Future<void> addBatch(BatchDraft draft) =>
@@ -511,16 +544,17 @@ class InventoryDatabase extends GeneratedDatabase {
   Future<void> _insertBatch(BatchDraft draft) async {
     await customStatement(
       '''
-      INSERT INTO batches (name, starting_qty, unit, storage, printed_date,
+      INSERT INTO batches (name, starting_qty, unit, storage, category, printed_date,
         date_source, printed_time, guidance_rule_id, guidance_catalog_version,
         guidance_anchor_event, guidance_anchor_date, suggested_date, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''',
       [
         draft.name,
         draft.quantity,
         draft.unit,
         draft.storage,
+        draft.category,
         draft.printedDate,
         draft.printedDate == null ? 'unknown' : 'printed',
         draft.printedTime,
@@ -580,7 +614,7 @@ class InventoryDatabase extends GeneratedDatabase {
               batchId: row.read<int>('batch_id'),
               food: row.read<String>('name'),
               unit: row.read<String>('unit'),
-              quantity: row.read<int>('quantity'),
+              quantity: normalizeQuantity(row.read<double>('quantity')),
               reason: row.readNullable<String>('reason') ?? 'Unspecified',
               createdAt: DateTime.parse(row.read<String>('created_at')),
             ),
@@ -612,7 +646,7 @@ class InventoryDatabase extends GeneratedDatabase {
             food: row.read<String>('name'),
             unit: row.read<String>('unit'),
             type: row.read<String>('type'),
-            delta: row.read<int>('delta'),
+            delta: normalizeQuantity(row.read<double>('delta')),
             reason: row.readNullable<String>('reason'),
             createdAt: DateTime.parse(row.read<String>('created_at')),
           ),

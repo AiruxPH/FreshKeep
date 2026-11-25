@@ -1,4 +1,6 @@
+import '../food_category.dart';
 import '../guidance/guidance_selection.dart';
+import '../quantity/quantity_math.dart';
 import '../reminder.dart';
 
 /// How a validated backup should be applied to the local database.
@@ -15,24 +17,26 @@ class BackupValidationException implements Exception {
 
 /// Serializable snapshot of a single grocery batch row and optional photo.
 class BackupBatchRecord {
-  const BackupBatchRecord({
+  BackupBatchRecord({
     required this.id,
     required this.name,
-    required this.startingQty,
+    required num startingQty,
     required this.unit,
     required this.storage,
+    this.category = FoodCategory.defaultCategory,
     this.printedDate,
     this.printedTime,
     this.guidance,
     required this.createdAt,
     this.photoBase64,
-  });
+  }) : startingQty = normalizeQuantity(startingQty);
 
   final int id;
   final String name;
-  final int startingQty;
+  final double startingQty;
   final String unit;
   final String storage;
+  final String category;
   final String? printedDate;
   final String? printedTime;
   final BatchGuidance? guidance;
@@ -42,20 +46,20 @@ class BackupBatchRecord {
 
 /// Serializable snapshot of a single append-only stock event row.
 class BackupEventRecord {
-  const BackupEventRecord({
+  BackupEventRecord({
     required this.id,
     required this.batchId,
     required this.type,
-    required this.delta,
+    required num delta,
     this.reason,
     required this.createdAt,
     this.reversesId,
-  });
+  }) : delta = normalizeQuantity(delta);
 
   final int id;
   final int batchId;
   final String type;
-  final int delta;
+  final double delta;
   final String? reason;
   final String createdAt;
   final int? reversesId;
@@ -70,6 +74,8 @@ class BackupBatchEditRecord {
     required this.newName,
     required this.oldStorage,
     required this.newStorage,
+    this.oldCategory = FoodCategory.defaultCategory,
+    this.newCategory = FoodCategory.defaultCategory,
     this.oldDate,
     this.newDate,
     required this.createdAt,
@@ -83,6 +89,8 @@ class BackupBatchEditRecord {
   final String newName;
   final String oldStorage;
   final String newStorage;
+  final String oldCategory;
+  final String newCategory;
   final String? oldDate;
   final String? newDate;
   final String createdAt;
@@ -107,7 +115,7 @@ class FreshKeepBackup {
 
   static const formatTag = 'freshkeep_backup';
   static const currentFormatVersion = 1;
-  static const currentDbSchemaVersion = 8;
+  static const currentDbSchemaVersion = 9;
 
   final int formatVersion;
   final int dbSchemaVersion;

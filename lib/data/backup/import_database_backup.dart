@@ -36,15 +36,16 @@ Future<BackupImportSummary> _mergeIntoDatabase(
   for (final batch in batches) {
     await db.customStatement(
       '''INSERT INTO batches (
-        name, starting_qty, unit, storage, printed_date, date_source,
+        name, starting_qty, unit, storage, category, printed_date, date_source,
         printed_time, guidance_rule_id, guidance_catalog_version,
         guidance_anchor_event, guidance_anchor_date, suggested_date, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
       [
         batch.name.trim(),
         batch.startingQty,
         batch.unit,
         batch.storage,
+        batch.category,
         batch.printedDate,
         batch.printedDate == null ? 'unknown' : 'printed',
         batch.printedTime,
@@ -122,14 +123,17 @@ Future<BackupImportSummary> _mergeIntoDatabase(
     await db.customStatement(
       '''INSERT INTO batch_edits (
         batch_id, old_name, new_name, old_storage, new_storage,
-        old_date, new_date, created_at, photo_change, guidance_change
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        old_category, new_category, old_date, new_date, created_at,
+        photo_change, guidance_change
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
       [
         mappedBatchId,
         edit.oldName.trim(),
         edit.newName.trim(),
         edit.oldStorage,
         edit.newStorage,
+        edit.oldCategory,
+        edit.newCategory,
         edit.oldDate,
         edit.newDate,
         edit.createdAt,
@@ -177,16 +181,17 @@ Future<BackupImportSummary> _replaceDatabase(
   for (final batch in batches) {
     await db.customStatement(
       '''INSERT INTO batches (
-        id, name, starting_qty, unit, storage, printed_date, date_source,
-        printed_time, guidance_rule_id, guidance_catalog_version,
+        id, name, starting_qty, unit, storage, category, printed_date,
+        date_source, printed_time, guidance_rule_id, guidance_catalog_version,
         guidance_anchor_event, guidance_anchor_date, suggested_date, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
       [
         batch.id,
         batch.name.trim(),
         batch.startingQty,
         batch.unit,
         batch.storage,
+        batch.category,
         batch.printedDate,
         batch.printedDate == null ? 'unknown' : 'printed',
         batch.printedTime,
@@ -251,8 +256,9 @@ Future<BackupImportSummary> _replaceDatabase(
     await db.customStatement(
       '''INSERT INTO batch_edits (
         id, batch_id, old_name, new_name, old_storage, new_storage,
-        old_date, new_date, created_at, photo_change, guidance_change
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        old_category, new_category, old_date, new_date, created_at,
+        photo_change, guidance_change
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
       [
         edit.id,
         edit.batchId,
@@ -260,6 +266,8 @@ Future<BackupImportSummary> _replaceDatabase(
         edit.newName.trim(),
         edit.oldStorage,
         edit.newStorage,
+        edit.oldCategory,
+        edit.newCategory,
         edit.oldDate,
         edit.newDate,
         edit.createdAt,

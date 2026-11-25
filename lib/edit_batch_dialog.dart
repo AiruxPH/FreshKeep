@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'data/inventory_database.dart';
 import 'domain/batch.dart';
+import 'domain/food_category.dart';
 import 'domain/food_photo.dart';
 import 'domain/guidance/find_guidance_rule.dart';
 import 'domain/guidance/guidance_selection.dart';
@@ -28,6 +29,7 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
   final _form = GlobalKey<FormState>();
   late final TextEditingController _name;
   late String _storage;
+  late String _category;
   DateTime? _date;
   TimeOfDay? _time;
   FoodPhoto? _photo;
@@ -42,6 +44,7 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
     super.initState();
     _name = TextEditingController(text: widget.batch.draft.name);
     _storage = widget.batch.draft.storage;
+    _category = widget.batch.draft.category;
     _photo = widget.batch.draft.photo;
     _guidance = widget.batch.draft.guidance;
     _date = widget.batch.draft.printedDate == null
@@ -88,6 +91,7 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
         BatchDetailsDraft(
           name: _name.text,
           storage: _storage,
+          category: _category,
           printedDate: _date == null ? null : BatchDraft.dateOnly(_date!),
           printedTime: _date == null || _time == null
               ? null
@@ -150,6 +154,18 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
                       : value.trim().length > 100
                       ? 'Use at most 100 characters.'
                       : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _category,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                  items: FoodCategory.all
+                      .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                      .toList(),
+                  onChanged: _saving
+                      ? null
+                      : (v) => setState(() => _category = v!),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(

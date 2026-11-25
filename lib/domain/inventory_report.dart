@@ -1,19 +1,20 @@
 import 'batch.dart';
+import 'quantity/quantity_math.dart';
 
 class WasteEntry {
-  const WasteEntry({
+  WasteEntry({
     required this.id,
     required this.batchId,
     required this.food,
-    required this.quantity,
+    required num quantity,
     required this.unit,
     required this.reason,
     required this.createdAt,
-  });
+  }) : quantity = normalizeQuantity(quantity);
   final int id;
   final int batchId;
   final String food;
-  final int quantity;
+  final double quantity;
   final String unit;
   final String reason;
   final DateTime createdAt;
@@ -31,19 +32,24 @@ class InventoryReport {
   int get activeBatches => batches.where((batch) => !batch.depleted).length;
   int get depletedBatches => batches.where((batch) => batch.depleted).length;
 
-  Map<String, int> get remainingByUnit {
-    final totals = {for (final unit in BatchDraft.units) unit: 0};
+  Map<String, double> get remainingByUnit {
+    final scaled = {for (final unit in BatchDraft.units) unit: 0};
     for (final batch in batches) {
-      totals[batch.draft.unit] = totals[batch.draft.unit]! + batch.remaining;
+      scaled[batch.draft.unit] =
+          scaled[batch.draft.unit]! + toScaledUnits(batch.remaining);
     }
-    return totals;
+    return {
+      for (final unit in BatchDraft.units) unit: fromScaledUnits(scaled[unit]!),
+    };
   }
 
-  Map<String, int> get disposedByUnit {
-    final totals = {for (final unit in BatchDraft.units) unit: 0};
+  Map<String, double> get disposedByUnit {
+    final scaled = {for (final unit in BatchDraft.units) unit: 0};
     for (final entry in disposals) {
-      totals[entry.unit] = totals[entry.unit]! + entry.quantity;
+      scaled[entry.unit] = scaled[entry.unit]! + toScaledUnits(entry.quantity);
     }
-    return totals;
+    return {
+      for (final unit in BatchDraft.units) unit: fromScaledUnits(scaled[unit]!),
+    };
   }
 }

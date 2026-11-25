@@ -19,6 +19,7 @@ String serializeBackup(FreshKeepBackup backup, {bool pretty = true}) {
           'startingQty': b.startingQty,
           'unit': b.unit,
           'storage': b.storage,
+          'category': b.category,
           'printedDate': b.printedDate,
           'printedTime': b.printedTime,
           'guidance': b.guidance == null
@@ -55,6 +56,8 @@ String serializeBackup(FreshKeepBackup backup, {bool pretty = true}) {
           'newName': edit.newName,
           'oldStorage': edit.oldStorage,
           'newStorage': edit.newStorage,
+          'oldCategory': edit.oldCategory,
+          'newCategory': edit.newCategory,
           'oldDate': edit.oldDate,
           'newDate': edit.newDate,
           'createdAt': edit.createdAt,

@@ -1,5 +1,25 @@
 # Offline change log
 
+## 2026-11-25 (21:43 +08:00)
+
+- **Reason for change:** User approved the scope audit & remaining tasks plan to close the two small proposal-vs-implementation gaps (curated food categories + category search/filter, and decimal quantities for measured units `g`/`mL`), reconcile stale repo documentation, silence the JDK 25 Gradle launcher warning, and build smaller `--split-per-abi` release APKs (while deferring the optional in-app update checker).
+- **Food categories & category search (`lib/domain/food_category.dart`, `lib/domain/batch.dart`, `lib/domain/inventory_query.dart`, `lib/add_groceries_dialog.dart`, `lib/edit_batch_dialog.dart`, `lib/inventory_screen.dart`, `lib/batch_details_screen.dart`, `lib/guidance_screen.dart`):**
+  - Added curated offline `FoodCategory.all` (`Produce`, `Meat & Seafood`, `Dairy & Eggs`, `Grains & Bakery`, `Canned & Dry`, `Beverages`, `Leftovers & Prepared`, `Condiments & Sauces`, `Other`, default `'Other'`).
+  - Wired category selection into `AddGroceriesScreen` and `EditBatchDialog`, category display onto inventory cards and batch details, before/after category audit lines in Details history, category preservation when applying/clearing guidance, and category search + dedicated `Category filter` dropdown in `InventoryScreen`.
+- **Exact 2-decimal measured units (`lib/domain/quantity/quantity_math.dart`, `lib/domain/quantity/validate_quantity.dart`, `lib/domain/quantity/format_quantity.dart`, `lib/domain/stock_event.dart`, `lib/domain/inventory_report.dart`, `lib/domain/waste_query.dart`, `lib/domain/recent_stock_action.dart`, `lib/stock_action_dialog.dart`, `lib/widgets/dashboard/unit_breakdown_card.dart`):**
+  - Sliced exact hundredths arithmetic (`toScaledUnits`, `fromScaledUnits`, `normalizeQuantity`, `subtractQuantities`), per-unit validation (`pieces` strictly whole integers; `g` and `mL` up to 2 decimal places), and clean formatting (stripping trailing `.0`) into standalone files so subtraction, depletion (`1.5 - 0.3 - 1.2 == 0`), undo, and dashboard/waste unit totals never suffer floating-point drift.
+- **SQLite schema v8 → v9 & JSON backup compatibility (`lib/data/migrate_v9_categories_and_decimals.dart`, `lib/data/inventory_database.dart`, `lib/domain/backup/*`, `lib/data/backup/*`):**
+  - Bumped `schemaVersion` to `9`, rebuilding `batches` (`category TEXT NOT NULL DEFAULT 'Other'`, `starting_qty REAL`) and `events` (`delta REAL`) atomically with `PRAGMA foreign_keys = OFF` outside the transaction and recreating append-only triggers, plus idempotently adding `old_category` / `new_category` to `batch_edits`.
+  - Updated JSON backup export/import/validation to round-trip categories and decimal quantities while defaulting missing `category` fields from older v8 backups to `'Other'`.
+- **Gradle wrapper & documentation hygiene (`android/gradlew.bat`, `android/gradlew`, `plans/Remaining Work and Recommendations.md`, `plans/Core Feature Checklist.md`, `plans/Requirement Traceability and Evaluation.md`, `README.md`):**
+  - Added `--enable-native-access=ALL-UNNAMED` to `DEFAULT_JVM_OPTS` in `gradlew.bat` and `gradlew` to silence the JDK 25 `java.lang.System::load` restricted-method warning.
+  - Reconciled stale checkboxes for `R47` (camera capture) and `R49` (calculated guidance) and added Milestone 15 (`R54–R55`).
+- **Causes of errors caught & fixed during verification:**
+  1. Legacy v4–v7 migration tests seed databases by running `onCreate` at the latest schema before lowering `PRAGMA user_version`, causing `duplicate column name: old_category` on `ALTER TABLE batch_edits`; fixed by inspecting `PRAGMA table_info(batch_edits)` in `migrateToV9CategoriesAndDecimals()` before adding the columns.
+  2. `Category` `DropdownButtonFormField` in `AddGroceriesScreen` (and `EditBatchDialog`) lacked `isExpanded: true`, causing a narrow-screen `RenderFlex` overflow in `test/ocr_experiment_test.dart`; fixed by setting `isExpanded: true`.
+  3. Updated `test/report_test.dart` fold accumulator from `int` to `double`, and added `ensureVisible` / collapsing `Filters and sort` in `test/category_and_decimal_test.dart` so off-screen dropdowns and filtered cards sit inside the test viewport.
+- **Verification:** `flutter analyze` passed (`No issues found!`), `flutter test -j 1` passed (**119/119 tests passing**, including `test/category_and_decimal_test.dart`), `flutter build apk --release --split-per-abi` succeeded cleanly without the JDK 25 native-access warning (`app-arm64-v8a-release.apk`: **34.13 MB**, `app-armeabi-v7a-release.apk`: **27.54 MB**, `app-x86_64-release.apk`: **35.99 MB** — down from `90.44 MB` universal), and `flutter build web --no-pub` succeeded (`build/web`, Wasm dry run passing).
+
 ## 2026-11-21 (17:45 +08:00)
 
 - **Reason for change:** Project pushed to `https://github.com/AiruxPH/FreshKeep`; user requested implementing both optional extras: offline **Local JSON Backup (export/import)** and the separate **On-Device ML Kit OCR Experiment**.

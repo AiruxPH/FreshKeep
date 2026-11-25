@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import 'data/inventory_database.dart';
 import 'domain/batch.dart';
+import 'domain/food_category.dart';
 import 'domain/food_photo.dart';
 import 'domain/ocr/ocr_models.dart';
+import 'domain/quantity/validate_quantity.dart';
 import 'ocr/ocr_service.dart';
 import 'ocr/pick_scan_image.dart';
 import 'ocr/scan_label_screen.dart';
@@ -38,6 +40,7 @@ class _DraftRow {
   final focus = FocusNode();
   String unit = 'pieces';
   String storage = 'Pantry';
+  String category = FoodCategory.defaultCategory;
   DateTime? date;
   TimeOfDay? time;
   FoodPhoto? photo;
@@ -45,9 +48,10 @@ class _DraftRow {
   BatchDraft toBatch() => BatchDraft(
     photo: photo,
     name: name.text,
-    quantity: int.parse(quantity.text.trim()),
+    quantity: parseQuantityInput(quantity.text, unit)!,
     unit: unit,
     storage: storage,
+    category: category,
     printedDate: date == null ? null : BatchDraft.dateOnly(date!),
     printedTime: date == null || time == null
         ? null
@@ -251,24 +255,28 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
+              final allowsDecimal = unitAllowsDecimals(row.unit);
               final quantity = TextFormField(
                 controller: row.quantity,
                 enabled: !_saving,
-                keyboardType: TextInputType.number,
+                keyboardType: allowsDecimal
+                    ? const TextInputType.numberWithOptions(decimal: true)
+                    : TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Quantity',
                   errorMaxLines: 3,
                   suffixIcon: _FieldHelp(
-                    'Use whole numbers. For 0.5 kg, enter 500 and choose g.',
+                    'Use whole numbers for pieces. Grams (g) and mL accept up to 2 decimal places.',
                   ),
                 ),
                 validator: (value) {
-                  final quantity = int.tryParse(value?.trim() ?? '');
-                  return quantity == null ||
-                          quantity < 1 ||
-                          quantity > 1000000000
-                      ? 'Enter a whole number from 1 to 1,000,000,000.'
-                      : null;
+                  final parsed = parseQuantityInput(value ?? '', row.unit);
+                  if (parsed == null) {
+                    return allowsDecimal
+                        ? 'Enter a number (up to 2 decimals) from 0.01 to 1,000,000,000.'
+                        : 'Enter a whole number from 1 to 1,000,000,000.';
+                  }
+                  return validateQuantityForUnit(parsed, row.unit);
                 },
               );
               final unit = DropdownButtonFormField<String>(
@@ -309,9 +317,24 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
             initiallyExpanded: row.date != null,
             title: const Text('Storage & date'),
             subtitle: Text(
-              '${row.storage} · ${row.date == null ? 'Date unknown' : row.date != null && row.time != null ? '${BatchDraft.dateOnly(row.date!)} ${BatchDraft.timeOnly(row.time!.hour, row.time!.minute)}' : BatchDraft.dateOnly(row.date!)}',
+              '${row.category} · ${row.storage} · ${row.date == null ? 'Date unknown' : row.date != null && row.time != null ? '${BatchDraft.dateOnly(row.date!)} ${BatchDraft.timeOnly(row.time!.hour, row.time!.minute)}' : BatchDraft.dateOnly(row.date!)}',
             ),
             children: [
+              DropdownButtonFormField<String>(
+                initialValue: row.category,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Category'),
+                items: FoodCategory.all
+                    .map(
+                      (value) =>
+                          DropdownMenuItem(value: value, child: Text(value)),
+                    )
+                    .toList(),
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() => row.category = value!),
+              ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: row.storage,
                 decoration: const InputDecoration(labelText: 'Storage'),

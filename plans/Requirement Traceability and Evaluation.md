@@ -1,7 +1,7 @@
 # FreshKeep — Requirement Traceability, Defect Log, Timing & Release Prep
 
-Updated: 2026-11-21 · App version: `1.0.0+1` · Application ID: `com.freshkeep.freshkeep` · Schema: v8  
-Automated verification: `flutter analyze` (0 issues), `flutter test -j 1` (110/110 passing).  
+Updated: 2026-11-25 · App version: `1.0.0+1` · Application ID: `com.freshkeep.freshkeep` · Schema: v9  
+Automated verification: `flutter analyze` (0 issues), `flutter test -j 1` (119/119 passing).  
 Note: Automated/browser checks and physical-device checks are recorded in separate columns; participant/user-study results must be reported separately from developer tests.
 
 ---
@@ -63,8 +63,10 @@ Note: Automated/browser checks and physical-device checks are recorded in separa
 | R51 | M14 | Validate, preview, and atomically import JSON backups (Merge/Replace); reject corrupt JSON cleanly | `test/backup_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
 | R52 | M14 | Isolated on-device single-item ML Kit OCR + multi-side scan merging + honest web/desktop sample mode | `test/ocr_experiment_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
 | R53 | M14 | Exclude MFG dates, flag ambiguous/month-only dates, keep unknown if missing, draft-only review handoff | `test/ocr_experiment_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
+| R54 | M15 | Curated food categories per batch, category display/edit audit, and Inventory category search & filter | `test/category_and_decimal_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
+| R55 | M15 | Exact 2-decimal quantities for `g`/`mL` (whole-number `pieces`), v8→v9 migration, reports & backup | `test/category_and_decimal_test.dart` | Pass | Pending re-check on device | 1.0.0+1 |
 
-**Automated Pass Rate:** 53 / 53 requirements covered · 110 / 110 automated tests passing (100%).
+**Automated Pass Rate:** 55 / 55 requirements covered · 119 / 119 automated tests passing (100%).
 
 ---
 

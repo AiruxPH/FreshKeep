@@ -1,10 +1,10 @@
 # FreshKeep remaining work and recommendations
 
-Reviewed: 2026-11-21. This is the current remaining-work list; older plan milestones describe historical status. Update this file and CHANGELOG.md as items are completed.
+Reviewed: 2026-11-25. This is the current remaining-work list; older plan milestones describe historical status. Update this file and CHANGELOG.md as items are completed.
 
 ## Android build & device status
 
-**Priority 1 (debug APK build, physical-phone startup, and physical-phone core/photo/notification acceptance) is complete.** Schema is now **v8** (`printed_time`, direct camera capture + lost-picker recovery, custom Android/web launcher icons, calculated storage-guidance dates, splash/first-open onboarding, redesigned dashboard & waste search/filter, plus optional offline Local JSON Backup and separate ML Kit OCR experiment), and the full automated test suite (`110/110`) + `flutter analyze` pass.
+**Priority 1 (debug APK build, physical-phone startup, and physical-phone core/photo/notification acceptance) is complete.** Schema is now **v9** (`printed_time`, direct camera capture + lost-picker recovery, custom Android/web launcher icons, calculated storage-guidance dates, splash/first-open onboarding, redesigned dashboard & waste search/filter, optional offline Local JSON Backup, separate ML Kit OCR experiment, **food categories + category search/filter**, and **decimal quantities for `g` and `mL`**), and the full automated test suite + `flutter analyze` pass.
 
 Release signing is now wired in `android/app/build.gradle.kts` via `android/key.properties` (ignored in `.gitignore`, falling back to debug signing when `key.properties` is absent). Creating the keystore and building the final signed release artifact remains under Priority 2.
 
@@ -55,32 +55,31 @@ Web intentionally provides reminder settings and previews only. Browser backgrou
 - [ ] Generate the release keystore + `android/key.properties` (outside source control) and build/test the signed release artifact (`flutter build apk --release` or `flutter build appbundle --release`).
 - [ ] Reconcile historical planning text and the DOCX proposal copy where required. The development plan still contains obsolete initial setup steps and an older ten-week schedule below its superseding one-month agreement.
 
-## Unimplemented features requiring a scope decision
+## Implemented optional & scope-aligned enhancements (device re-check pending)
 
-### Calculated storage-guidance dates
+### Calculated storage-guidance dates (Implemented in M13 — R49)
 
-The offline catalog already provides 16 foods and 17 condition-specific references. It currently displays references without assigning a calculated date.
+- [x] Added explicit guidance-rule selection, food condition, and the rule's starting event/date confirmation (`showApplyGuidanceSheet`).
+- [x] Persisted guidance inputs via v6→v7 migration; displays suggested date separately from printed date, with provenance and source citation.
+- [x] Defined editing, clearing, and reminder behavior for suggestions; tested unknown anchors and unsupported combinations.
 
-- [ ] If calculated suggestions are required, add explicit guidance-rule selection, food condition and the rule's starting event/date.
-- [ ] Persist those inputs with a migration; show a suggested date separately from a printed date, with provenance and source citation.
-- [ ] Define editing, clearing and reminder behavior for suggestions; test unknown anchors and unsupported combinations.
+### Direct camera capture (Implemented in M13 — R47)
 
-Recommendation: confirm this requirement before implementing it. The reference-only milestone is complete. Do not calculate dates from an assumed purchase/opening/storage date.
+- [x] Added a dedicated `Take photo` action alongside gallery picking in entry and edit photo controls.
+- [x] Shared 5 MB size checks, codec readability checks, safe cancellation/errors, and Android `retrieveLostData()` recovery.
 
-### Image-based grocery entry: separate single-item experiment (Implemented; device eval pending)
+### Food categories & decimal measured units (Implemented in M15 — R54–R55)
+
+- [x] Added curated offline food categories (`FoodCategory.all`), category display on batch cards/details, editable category with audit history, and category search + filter in Inventory.
+- [x] Enabled decimal quantities (up to 2 decimal places) for measured units (`g`, `mL`) using exact hundredths math while keeping `pieces` whole-number, migrated losslessly via v8→v9.
+
+### Image-based grocery entry: separate single-item experiment (Implemented in M14 — R52–R53; device eval pending)
 
 - [x] Start with single packaged-item capture supporting multi-side scans (e.g. front label name + back panel date).
 - [x] Separate food-name drafting from printed-date OCR; ignore manufacturing dates (`MFG`/`MFD`/`PROD`/`PKD`), keep missing/ambiguous dates unknown until confirmed, and never infer dates from appearance.
 - [x] Hand off all OCR results strictly as editable drafts into `AddGroceriesScreen`, keeping manual entry intact on failure/cancellation and isolating ML Kit behind a web/desktop Sample Mode stub.
 - [ ] Evaluate on held-out packaged items on the physical Android phone, logging raw extraction errors, user corrections, and task timing in `plans/Requirement Traceability and Evaluation.md`.
-- Future stretch (not needed for core delivery): multi-item capture & reliable per-item date association.
-
-### Direct camera capture: optional convenience
-
-- [ ] Add a dedicated Take photo action if needed. The current implemented picker requests gallery selection; the app does not provide its own camera capture action.
-- [ ] Test camera cancellation, device-specific behavior and interrupted capture if introduced.
-
-Recommendation: gallery selection is sufficient for the first Android test. Camera capture alone does not require food recognition.
+- Note: Packaging-label OCR was chosen over full receipt scanning because grocery receipts omit expiration dates. Future stretch (deferred): multi-item receipt capture & in-app update checker.
 
 ## Additional recommendations, not current completion requirements
 
@@ -95,10 +94,10 @@ Cloud sync, shared-household synchronization, appearance-based spoilage detectio
 
 ## Suggested order
 
-1. Successful debug APK build and physical-phone startup.
-2. Core offline, photo and notification acceptance checks; fix defects.
-3. Final requirement traceability and regression checks.
-4. User evaluation, polish and submission materials.
-5. Add calculated suggestions or camera convenience only if confirmed and time permits; keep recognition in its separate workstream.
+1. ~~Successful debug APK build and physical-phone startup.~~ (Completed)
+2. ~~Core offline, photo and notification acceptance checks; fix defects.~~ (Completed for R1–R44)
+3. Generate release keystore (`android/key.properties` outside git) and build the smaller `--split-per-abi` release APK (`app-arm64-v8a-release.apk`).
+4. Re-check `D-002` and `R45–R55` on the physical Android phone and record the 5-trial task timing sheet + held-out OCR sheet.
+5. Run quick Google Forms user evaluation (`Freshkeep_quest (1).docx`), polish any findings, and finalize the manuscript/submission materials.
 
 Sources of project status: `Core Feature Checklist.md`, `FreshKeep Development Plan.md`, `Reminder Behavior.md`, README.md, CHANGELOG.md and the current Android/photo-picker source. Checklist boxes here reflect outstanding work, not a claim that no related implementation exists.

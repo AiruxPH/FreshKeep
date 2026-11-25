@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../batch.dart';
 import '../food_photo.dart';
+import '../quantity/quantity_math.dart';
 import 'backup_models.dart';
 
 /// Validates structural integrity, stock conservation, reversals, photos, and
@@ -32,6 +33,7 @@ void validateBackup(FreshKeepBackup backup) {
         quantity: batch.startingQty,
         unit: batch.unit,
         storage: batch.storage,
+        category: batch.category,
         printedDate: batch.printedDate,
         printedTime: batch.printedTime,
         guidance: batch.guidance,
@@ -61,7 +63,7 @@ void validateBackup(FreshKeepBackup backup) {
 
   final eventIds = <int>{};
   final eventsById = <int, BackupEventRecord>{};
-  final deltaSumByBatch = <int, int>{};
+  final scaledDeltaSumByBatch = <int, int>{};
   const validEventTypes = {'consume', 'dispose', 'correct', 'reverse'};
 
   for (final event in backup.events) {
@@ -80,13 +82,13 @@ void validateBackup(FreshKeepBackup backup) {
         'Event #${event.id} has unsupported type "${event.type}".',
       );
     }
-    if (event.delta == 0) {
+    if (toScaledUnits(event.delta) == 0) {
       throw BackupValidationException(
         'Event #${event.id} cannot have a zero quantity change.',
       );
     }
     if ((event.type == 'consume' || event.type == 'dispose') &&
-        event.delta >= 0) {
+        toScaledUnits(event.delta) >= 0) {
       throw BackupValidationException(
         'Event #${event.id} (${event.type}) must decrease stock.',
       );
@@ -112,8 +114,9 @@ void validateBackup(FreshKeepBackup backup) {
       );
     }
     eventsById[event.id] = event;
-    deltaSumByBatch[event.batchId] =
-        (deltaSumByBatch[event.batchId] ?? 0) + event.delta;
+    scaledDeltaSumByBatch[event.batchId] =
+        (scaledDeltaSumByBatch[event.batchId] ?? 0) +
+        toScaledUnits(event.delta);
   }
 
   final seenReversedIds = <int>{};
@@ -141,7 +144,7 @@ void validateBackup(FreshKeepBackup backup) {
         'Event #$targetId is reversed more than once in this backup.',
       );
     }
-    if (event.delta != -target.delta) {
+    if (toScaledUnits(event.delta) != -toScaledUnits(target.delta)) {
       throw BackupValidationException(
         'Reversal event #${event.id} delta does not cancel event #$targetId.',
       );
@@ -149,8 +152,11 @@ void validateBackup(FreshKeepBackup backup) {
   }
 
   for (final batch in backup.batches) {
-    final remaining = batch.startingQty + (deltaSumByBatch[batch.id] ?? 0);
-    if (remaining < 0 || remaining > 1000000000) {
+    final remainingScaled =
+        toScaledUnits(batch.startingQty) +
+        (scaledDeltaSumByBatch[batch.id] ?? 0);
+    final remaining = fromScaledUnits(remainingScaled);
+    if (remainingScaled < 0 || remaining > kMaxQuantity) {
       throw BackupValidationException(
         'Resulting remaining stock ($remaining) for "${batch.name}" is out of range.',
       );
@@ -173,11 +179,13 @@ void validateBackup(FreshKeepBackup backup) {
       BatchDetailsDraft(
         name: edit.oldName,
         storage: edit.oldStorage,
+        category: edit.oldCategory,
         printedDate: edit.oldDate,
       );
       BatchDetailsDraft(
         name: edit.newName,
         storage: edit.newStorage,
+        category: edit.newCategory,
         printedDate: edit.newDate,
       );
     } on ArgumentError catch (error) {

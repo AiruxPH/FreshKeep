@@ -1,3 +1,6 @@
+import 'quantity/quantity_math.dart';
+import 'quantity/validate_quantity.dart';
+
 enum StockAction { consume, dispose, correct }
 
 class StockValidationException implements Exception {
@@ -7,43 +10,53 @@ class StockValidationException implements Exception {
   String toString() => message;
 }
 
-int stockDelta(StockAction action, int quantity, int remaining) {
-  if (quantity < 0 || quantity > 1000000000) {
-    throw const StockValidationException(
-      'Enter a quantity from 0 to 1,000,000,000.',
-    );
+double stockDelta(
+  StockAction action,
+  num quantity,
+  num remaining, {
+  String unit = 'g',
+}) {
+  final quantityError = validateQuantityForUnit(
+    quantity,
+    unit,
+    allowZero: true,
+  );
+  if (quantityError != null) {
+    throw StockValidationException(quantityError);
   }
+  final scaledQty = toScaledUnits(quantity);
+  final scaledRem = toScaledUnits(remaining);
   if (action == StockAction.correct) {
-    if (quantity == remaining) {
+    if (scaledQty == scaledRem) {
       throw const StockValidationException(
         'The actual quantity already matches your stock.',
       );
     }
-    return quantity - remaining;
+    return fromScaledUnits(scaledQty - scaledRem);
   }
-  if (quantity == 0) {
+  if (scaledQty <= 0) {
     throw const StockValidationException('Enter a quantity greater than zero.');
   }
-  if (quantity > remaining) {
+  if (scaledQty > scaledRem) {
     throw const StockValidationException(
       'This quantity exceeds the remaining stock.',
     );
   }
-  return -quantity;
+  return fromScaledUnits(-scaledQty);
 }
 
 class StockEvent {
-  const StockEvent({
+  StockEvent({
     required this.id,
     required this.type,
-    required this.delta,
+    required num delta,
     required this.reason,
     required this.createdAt,
     required this.reversed,
-  });
+  }) : delta = normalizeQuantity(delta);
   final int id;
   final String type;
-  final int delta;
+  final double delta;
   final String? reason;
   final DateTime createdAt;
   final bool reversed;

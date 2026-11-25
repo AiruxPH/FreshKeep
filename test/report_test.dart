@@ -80,7 +80,7 @@ void main() {
       expect(
         report.disposals
             .where((entry) => entry.batchId == batch.id)
-            .fold<int>(0, (total, entry) => total + entry.quantity),
+            .fold<double>(0, (total, entry) => total + entry.quantity),
         await database.disposedQuantity(batch.id),
       );
     }

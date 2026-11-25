@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../food_category.dart';
 import '../guidance/guidance_selection.dart';
 import '../reminder.dart';
 import 'backup_models.dart';
@@ -104,9 +105,10 @@ BackupBatchRecord _parseBatch(Map<String, dynamic> map) {
   return BackupBatchRecord(
     id: _requireInt(map, 'id'),
     name: _requireString(map, 'name'),
-    startingQty: _requireInt(map, 'startingQty'),
+    startingQty: _requireNum(map, 'startingQty'),
     unit: _requireString(map, 'unit'),
     storage: _requireString(map, 'storage'),
+    category: _optionalString(map, 'category') ?? FoodCategory.defaultCategory,
     printedDate: _optionalString(map, 'printedDate'),
     printedTime: _optionalString(map, 'printedTime'),
     guidance: guidance,
@@ -119,7 +121,7 @@ BackupEventRecord _parseEvent(Map<String, dynamic> map) => BackupEventRecord(
   id: _requireInt(map, 'id'),
   batchId: _requireInt(map, 'batchId'),
   type: _requireString(map, 'type'),
-  delta: _requireInt(map, 'delta'),
+  delta: _requireNum(map, 'delta'),
   reason: _optionalString(map, 'reason'),
   createdAt: _requireString(map, 'createdAt'),
   reversesId: _optionalInt(map, 'reversesId'),
@@ -133,6 +135,10 @@ BackupBatchEditRecord _parseEdit(Map<String, dynamic> map) =>
       newName: _requireString(map, 'newName'),
       oldStorage: _requireString(map, 'oldStorage'),
       newStorage: _requireString(map, 'newStorage'),
+      oldCategory:
+          _optionalString(map, 'oldCategory') ?? FoodCategory.defaultCategory,
+      newCategory:
+          _optionalString(map, 'newCategory') ?? FoodCategory.defaultCategory,
       oldDate: _optionalString(map, 'oldDate'),
       newDate: _optionalString(map, 'newDate'),
       createdAt: _requireString(map, 'createdAt'),
@@ -185,6 +191,14 @@ int _requireInt(Map<String, dynamic> map, String key) {
   final value = map[key];
   if (value is! int) {
     throw BackupValidationException('Expected integer field "$key" in backup.');
+  }
+  return value;
+}
+
+num _requireNum(Map<String, dynamic> map, String key) {
+  final value = map[key];
+  if (value is! num || !value.isFinite) {
+    throw BackupValidationException('Expected numeric field "$key" in backup.');
   }
   return value;
 }

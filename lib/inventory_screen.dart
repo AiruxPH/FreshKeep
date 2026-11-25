@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'data/inventory_database.dart';
 import 'domain/batch.dart';
+import 'domain/food_category.dart';
 import 'batch_details_screen.dart';
 import 'widgets/batch_date_label.dart';
 import 'stock_action_dialog.dart';
@@ -37,12 +38,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
   bool _failed = false;
   final _search = TextEditingController();
   String _storage = 'all';
+  String _category = 'all';
   String _dateFilter = 'all';
   StockFilter _stockFilter = StockFilter.active;
   InventorySort _sort = InventorySort.soonestDate;
   bool get _hasFilters =>
       _search.text.isNotEmpty ||
       _storage != 'all' ||
+      _category != 'all' ||
       _dateFilter != 'all' ||
       _stockFilter != StockFilter.active ||
       _sort != InventorySort.soonestDate;
@@ -55,6 +58,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _resetFilters() => setState(() {
     _search.clear();
     _storage = 'all';
+    _category = 'all';
     _dateFilter = 'all';
     _stockFilter = StockFilter.active;
     _sort = InventorySort.soonestDate;
@@ -68,7 +72,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         onChanged: (_) => setState(() {}),
         decoration: InputDecoration(
           labelText: 'Search inventory',
-          hintText: 'Food name',
+          hintText: 'Food name or category',
           isDense: true,
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _search.text.isEmpty
@@ -115,6 +119,27 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         ),
                       ],
                       onChanged: (value) => setState(() => _storage = value!),
+                    ),
+                  ),
+                  SizedBox(
+                    width: width,
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey('category-$_category'),
+                      initialValue: _category,
+                      decoration: const InputDecoration(
+                        labelText: 'Category filter',
+                      ),
+                      isExpanded: true,
+                      items: [
+                        const DropdownMenuItem(
+                          value: 'all',
+                          child: Text('All categories'),
+                        ),
+                        ...FoodCategory.all.map(
+                          (v) => DropdownMenuItem(value: v, child: Text(v)),
+                        ),
+                      ],
+                      onChanged: (value) => setState(() => _category = value!),
                     ),
                   ),
                   SizedBox(
@@ -277,6 +302,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _showAll() => setState(() {
     _search.clear();
     _storage = 'all';
+    _category = 'all';
     _dateFilter = 'all';
     _stockFilter = StockFilter.all;
     _sort = InventorySort.soonestDate;
@@ -370,6 +396,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     Text(batch.draft.storage),
                   ],
                 ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.label_outline, size: 16),
+                    const SizedBox(width: 4),
+                    Text(batch.draft.category),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -412,6 +446,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       LocalDayScope.of(context),
       search: _search.text,
       storage: _storage == 'all' ? null : _storage,
+      category: _category == 'all' ? null : _category,
       status: _dateFilter == 'all'
           ? null
           : DateStatus.values.byName(_dateFilter),

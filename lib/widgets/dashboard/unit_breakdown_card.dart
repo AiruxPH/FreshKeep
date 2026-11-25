@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/batch.dart';
 import '../../domain/inventory_report.dart';
+import '../../domain/quantity/format_quantity.dart';
 
 /// Displays remaining and discarded totals per compatible unit with visual
 /// remaining-vs-discarded bars.
@@ -72,8 +73,8 @@ class UnitBreakdownCard extends StatelessWidget {
                 final total = rem + disp;
                 return row(
                   unit,
-                  '$rem',
-                  '$disp',
+                  formatQuantityValue(rem),
+                  formatQuantityValue(disp),
                   remainingFraction: total == 0 ? 0.0 : rem / total,
                 );
               }(),

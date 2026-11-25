@@ -84,6 +84,7 @@ class _GuidanceScreenState extends State<GuidanceScreen> {
         BatchDetailsDraft(
           name: batch.draft.name,
           storage: batch.draft.storage,
+          category: batch.draft.category,
           printedDate: batch.draft.printedDate,
           printedTime: batch.draft.printedTime,
         ),
@@ -116,6 +117,7 @@ class _GuidanceScreenState extends State<GuidanceScreen> {
         BatchDetailsDraft(
           name: batch.draft.name,
           storage: batch.draft.storage,
+          category: batch.draft.category,
           printedDate: batch.draft.printedDate,
           printedTime: batch.draft.printedTime,
         ),

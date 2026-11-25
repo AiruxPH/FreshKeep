@@ -11,6 +11,7 @@ List<InventoryBatch> queryInventory(
   DateTime now, {
   String search = '',
   String? storage,
+  String? category,
   DateStatus? status,
   StockFilter stock = StockFilter.all,
   InventorySort sort = InventorySort.newest,
@@ -21,8 +22,11 @@ List<InventoryBatch> queryInventory(
       .split(RegExp(r'\s+'))
       .where((word) => word.isNotEmpty);
   final result = batches.where((batch) {
-    if (!words.every(batch.draft.name.toLowerCase().contains)) return false;
+    final searchable =
+        '${batch.draft.name} ${batch.draft.category}'.toLowerCase();
+    if (!words.every(searchable.contains)) return false;
     if (storage != null && batch.draft.storage != storage) return false;
+    if (category != null && batch.draft.category != category) return false;
     if (status != null) {
       final effective = resolveEffectiveDate(batch.draft);
       if (dateStatus(effective.date, now, time: effective.time) != status) {

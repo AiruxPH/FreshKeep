@@ -1,24 +1,25 @@
 import 'batch.dart';
+import 'quantity/quantity_math.dart';
 
 /// Represents an unreversed stock movement that can still be undone.
 class RecentStockAction {
-  const RecentStockAction({
+  RecentStockAction({
     required this.eventId,
     required this.batchId,
     required this.food,
     required this.unit,
     required this.type,
-    required this.delta,
+    required num delta,
     this.reason,
     required this.createdAt,
-  });
+  }) : delta = normalizeQuantity(delta);
 
   final int eventId;
   final int batchId;
   final String food;
   final String unit;
   final String type;
-  final int delta;
+  final double delta;
   final String? reason;
   final DateTime createdAt;
 

@@ -1,5 +1,6 @@
 import 'batch.dart';
 import 'inventory_report.dart';
+import 'quantity/quantity_math.dart';
 
 enum WasteSort { newest, oldest, largestQty, foodName }
 
@@ -91,10 +92,12 @@ List<WasteEntry> queryWasteLog(
 }
 
 /// Sums disposed quantities separately per compatible unit (`pieces`, `g`, `mL`).
-Map<String, int> wasteTotalsByUnit(List<WasteEntry> entries) {
-  final totals = {for (final unit in BatchDraft.units) unit: 0};
+Map<String, double> wasteTotalsByUnit(List<WasteEntry> entries) {
+  final scaled = {for (final unit in BatchDraft.units) unit: 0};
   for (final entry in entries) {
-    totals[entry.unit] = (totals[entry.unit] ?? 0) + entry.quantity;
+    scaled[entry.unit] = (scaled[entry.unit] ?? 0) + toScaledUnits(entry.quantity);
   }
-  return totals;
+  return {
+    for (final unit in BatchDraft.units) unit: fromScaledUnits(scaled[unit]!),
+  };
 }
