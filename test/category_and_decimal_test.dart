@@ -10,12 +10,14 @@ import 'package:freshkeep/domain/backup/backup_models.dart';
 import 'package:freshkeep/domain/backup/parse_backup.dart';
 import 'package:freshkeep/domain/backup/serialize_backup.dart';
 import 'package:freshkeep/domain/batch.dart';
+import 'package:freshkeep/domain/date_status.dart';
 import 'package:freshkeep/domain/food_category.dart';
 import 'package:freshkeep/domain/inventory_query.dart';
 import 'package:freshkeep/domain/quantity/format_quantity.dart';
 import 'package:freshkeep/domain/quantity/quantity_math.dart';
 import 'package:freshkeep/domain/quantity/validate_quantity.dart';
 import 'package:freshkeep/domain/stock_event.dart';
+import 'package:freshkeep/domain/suggest_food_category.dart';
 import 'package:freshkeep/inventory_screen.dart';
 import 'package:freshkeep/widgets/local_day_scope.dart';
 
@@ -80,8 +82,34 @@ void main() {
         throwsArgumentError,
       );
       expect(parseQuantityInput('1.5', 'pieces'), isNull);
+      expect(parseQuantityInput('.5', 'pieces'), isNull);
+      expect(parseQuantityInput('.5', 'g'), 0.5);
+      expect(parseQuantityInput('.25', 'mL'), 0.25);
       expect(parseQuantityInput('1.25', 'g'), 1.25);
       expect(parseQuantityInput('1.255', 'g'), isNull);
+      expect(
+        hoursLeftLabel('2026-11-25', '12:00', DateTime(2026, 11, 25, 11, 59, 30)),
+        '<1m left',
+      );
+    });
+
+    test('suggestFoodCategory resolves compound names cleanly and detects mismatches', () {
+      expect(suggestFoodCategory('Cooked rice'), 'Leftovers & Prepared');
+      expect(suggestFoodCategory('Soy milk'), 'Beverages');
+      expect(suggestFoodCategory('Soy sauce'), 'Condiments & Sauces');
+      expect(suggestFoodCategory('Canned tuna'), 'Canned & Dry');
+      expect(suggestFoodCategory('Tomato ketchup'), 'Condiments & Sauces');
+      expect(suggestFoodCategory('Eggs'), 'Dairy & Eggs');
+      expect(suggestFoodCategory('Banana'), 'Produce');
+      expect(suggestFoodCategory('Rice'), 'Grains & Bakery');
+      expect(suggestFoodCategory('Unknown XYZ'), isNull);
+
+      expect(categoryMismatchWarning('Eggs', 'Dairy & Eggs'), isNull);
+      expect(
+        categoryMismatchWarning('Eggs', 'Beverages'),
+        'Suggested category for "Eggs" is Dairy & Eggs (currently Beverages).',
+      );
+      expect(categoryMismatchWarning('Unknown XYZ', 'Beverages'), isNull);
     });
 
     test('exact hundredths arithmetic avoids float drift and formats cleanly', () {
@@ -245,6 +273,46 @@ void main() {
       (legacyMap['batches'] as List).first.remove('category');
       final legacyParsed = parseBackup(jsonEncode(legacyMap));
       expect(legacyParsed.batches.single.category, 'Other');
+
+      // Backup validation rejects fractional deltas on whole-number 'pieces' batches.
+      final badPiecesBackup = <String, dynamic>{
+        'format': FreshKeepBackup.formatTag,
+        'formatVersion': 1,
+        'dbSchemaVersion': 9,
+        'exportedAt': '2026-11-25T00:00:00Z',
+        'includesPhotos': false,
+        'batches': [
+          {
+            'id': 1,
+            'name': 'Eggs',
+            'startingQty': 6,
+            'unit': 'pieces',
+            'storage': 'Fridge',
+            'category': 'Dairy & Eggs',
+            'createdAt': '2026-11-25T00:00:00Z',
+          },
+        ],
+        'events': [
+          {
+            'id': 1,
+            'batchId': 1,
+            'type': 'consume',
+            'delta': -0.5,
+            'createdAt': '2026-11-25T01:00:00Z',
+          },
+        ],
+        'batchEdits': [],
+        'reminderSettings': {
+          'enabled': false,
+          'hour': 9,
+          'minute': 0,
+          'leadDays': 3,
+        },
+      };
+      expect(
+        () => parseBackup(jsonEncode(badPiecesBackup)),
+        throwsA(isA<BackupValidationException>()),
+      );
     });
 
     test('migrates v8 database losslessly to v9 and allows decimal actions', () async {
@@ -349,16 +417,28 @@ void main() {
       await tester.tap(find.text('g').last);
       await tester.pumpAndSettle();
 
-      // Expand Storage & date and pick Dairy & Eggs.
+      // Typing 'Butter' auto-selects Dairy & Eggs. Expand Storage & date,
+      // intentionally mismatch to Beverages, verify banner + 1-tap restore.
       await tester.ensureVisible(find.text('Storage & date'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Storage & date'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Other'));
+      await tester.ensureVisible(find.text('Dairy & Eggs'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Other'));
+      await tester.tap(find.text('Dairy & Eggs'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Dairy & Eggs').last);
+      await tester.tap(find.text('Beverages').last);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Suggested category for "Butter" is Dairy & Eggs (currently Beverages).',
+        ),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(find.text('Use Dairy & Eggs'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Use Dairy & Eggs'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const ValueKey('save-groceries')));

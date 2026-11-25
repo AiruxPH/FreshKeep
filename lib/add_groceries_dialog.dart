@@ -8,9 +8,11 @@ import 'domain/food_category.dart';
 import 'domain/food_photo.dart';
 import 'domain/ocr/ocr_models.dart';
 import 'domain/quantity/validate_quantity.dart';
+import 'domain/suggest_food_category.dart';
 import 'ocr/ocr_service.dart';
 import 'ocr/pick_scan_image.dart';
 import 'ocr/scan_label_screen.dart';
+import 'widgets/category_recommendation_banner.dart';
 import 'widgets/food_photo.dart';
 
 class AddGroceriesScreen extends StatefulWidget {
@@ -41,6 +43,8 @@ class _DraftRow {
   String unit = 'pieces';
   String storage = 'Pantry';
   String category = FoodCategory.defaultCategory;
+  bool categoryManuallySet = false;
+  bool storageExpanded = false;
   DateTime? date;
   TimeOfDay? time;
   FoodPhoto? photo;
@@ -85,9 +89,12 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
       for (final draft in widget.initialDrafts) {
         final row = _DraftRow();
         row.name.text = draft.name;
+        row.category =
+            suggestFoodCategory(draft.name) ?? FoodCategory.defaultCategory;
         row.date = draft.printedDate == null
             ? null
             : DateTime.tryParse(draft.printedDate!);
+        row.storageExpanded = row.date != null;
         row.photo = draft.photo;
         _rows.add(row);
       }
@@ -160,6 +167,12 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
   Widget _foodName(_DraftRow row, int index) => RawAutocomplete<String>(
     textEditingController: row.name,
     focusNode: row.focus,
+    onSelected: (selection) => setState(() {
+      if (!row.categoryManuallySet) {
+        row.category =
+            suggestFoodCategory(selection) ?? FoodCategory.defaultCategory;
+      }
+    }),
     optionsBuilder: (value) => _saving || value.text.trim().isEmpty
         ? const Iterable<String>.empty()
         : _names
@@ -190,6 +203,12 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
           : value.trim().length > 100
           ? 'Use at most 100 characters.'
           : null,
+      onChanged: (value) => setState(() {
+        if (!row.categoryManuallySet) {
+          row.category =
+              suggestFoodCategory(value) ?? FoodCategory.defaultCategory;
+        }
+      }),
       onFieldSubmitted: (_) => submit(),
     ),
     optionsViewBuilder: (context, select, options) => Align(
@@ -314,13 +333,16 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
             tilePadding: EdgeInsets.zero,
             childrenPadding: const EdgeInsets.only(bottom: 8),
             maintainState: true,
-            initiallyExpanded: row.date != null,
+            initiallyExpanded: row.storageExpanded,
+            onExpansionChanged: (expanded) =>
+                setState(() => row.storageExpanded = expanded),
             title: const Text('Storage & date'),
             subtitle: Text(
               '${row.category} · ${row.storage} · ${row.date == null ? 'Date unknown' : row.date != null && row.time != null ? '${BatchDraft.dateOnly(row.date!)} ${BatchDraft.timeOnly(row.time!.hour, row.time!.minute)}' : BatchDraft.dateOnly(row.date!)}',
             ),
             children: [
               DropdownButtonFormField<String>(
+                key: ValueKey('cat-${row.key}-${row.category}'),
                 initialValue: row.category,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Category'),
@@ -332,7 +354,19 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
                     .toList(),
                 onChanged: _saving
                     ? null
-                    : (value) => setState(() => row.category = value!),
+                    : (value) => setState(() {
+                        row.category = value!;
+                        row.categoryManuallySet = true;
+                      }),
+              ),
+              CategoryRecommendationBanner(
+                foodName: row.name.text,
+                selectedCategory: row.category,
+                enabled: !_saving,
+                onApply: (suggested) => setState(() {
+                  row.category = suggested;
+                  row.categoryManuallySet = false;
+                }),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -417,6 +451,16 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
               ),
             ],
           ),
+          if (!row.storageExpanded)
+            CategoryRecommendationBanner(
+              foodName: row.name.text,
+              selectedCategory: row.category,
+              enabled: !_saving,
+              onApply: (suggested) => setState(() {
+                row.category = suggested;
+                row.categoryManuallySet = false;
+              }),
+            ),
         ],
       ),
     ),
@@ -464,9 +508,14 @@ class _AddGroceriesScreenState extends State<AddGroceriesScreen> {
           last.photo == null;
       final target = lastUntouched ? last : _DraftRow();
       target.name.text = draft.name;
+      if (!target.categoryManuallySet) {
+        target.category =
+            suggestFoodCategory(draft.name) ?? FoodCategory.defaultCategory;
+      }
       target.date = draft.printedDate == null
           ? null
           : DateTime.tryParse(draft.printedDate!);
+      if (target.date != null) target.storageExpanded = true;
       target.photo = draft.photo;
       if (!lastUntouched) {
         _rows.add(target);

@@ -20,7 +20,9 @@ double? parseQuantityInput(String raw, String unit) {
     final whole = int.tryParse(text);
     return whole?.toDouble();
   }
-  if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(text)) return null;
+  if (!RegExp(r'^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$').hasMatch(text)) {
+    return null;
+  }
   final parsed = double.tryParse(text);
   if (parsed == null || !parsed.isFinite) return null;
   return normalizeQuantity(parsed);

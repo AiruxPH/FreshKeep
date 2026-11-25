@@ -7,6 +7,7 @@ import 'domain/food_photo.dart';
 import 'domain/guidance/find_guidance_rule.dart';
 import 'domain/guidance/guidance_selection.dart';
 import 'domain/stock_event.dart';
+import 'widgets/category_recommendation_banner.dart';
 import 'widgets/food_photo.dart';
 
 class EditBatchDialog extends StatefulWidget {
@@ -149,6 +150,7 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
                   enabled: !_saving,
                   maxLength: 100,
                   decoration: const InputDecoration(labelText: 'Food name'),
+                  onChanged: (_) => setState(() {}),
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Enter a food name.'
                       : value.trim().length > 100
@@ -157,6 +159,7 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
+                  key: ValueKey('edit-cat-$_category'),
                   initialValue: _category,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Category'),
@@ -166,6 +169,12 @@ class _EditBatchDialogState extends State<EditBatchDialog> {
                   onChanged: _saving
                       ? null
                       : (v) => setState(() => _category = v!),
+                ),
+                CategoryRecommendationBanner(
+                  foodName: _name.text,
+                  selectedCategory: _category,
+                  enabled: !_saving,
+                  onApply: (suggested) => setState(() => _category = suggested),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(

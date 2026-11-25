@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../batch.dart';
 import '../food_photo.dart';
 import '../quantity/quantity_math.dart';
+import '../quantity/validate_quantity.dart';
 import 'backup_models.dart';
 
 /// Validates structural integrity, stock conservation, reversals, photos, and
@@ -75,6 +76,17 @@ void validateBackup(FreshKeepBackup backup) {
     if (!batchIds.contains(event.batchId)) {
       throw BackupValidationException(
         'Event #${event.id} references missing batch #${event.batchId}.',
+      );
+    }
+    final batch = batchById[event.batchId]!;
+    if (!unitAllowsDecimals(batch.unit) && !isWholeQuantity(event.delta)) {
+      throw BackupValidationException(
+        'Event #${event.id} must use a whole-number quantity for ${batch.unit}.',
+      );
+    }
+    if (unitAllowsDecimals(batch.unit) && !hasAtMostTwoDecimals(event.delta)) {
+      throw BackupValidationException(
+        'Event #${event.id} exceeds 2 decimal places for ${batch.unit}.',
       );
     }
     if (!validEventTypes.contains(event.type)) {

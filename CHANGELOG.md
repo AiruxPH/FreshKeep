@@ -1,5 +1,17 @@
 # Offline change log
 
+## 2026-11-26 (00:08 +08:00)
+
+- **Reason for change:** Hardened edge cases identified during code review and added offline context-aware food-to-category recommendations with mismatch warnings so items stay accurately categorized without blocking manual overrides.
+- **Three edge-case fixes (`lib/domain/quantity/validate_quantity.dart`, `lib/domain/backup/validate_backup.dart`, `lib/domain/date_status.dart`):**
+  - Updated `parseQuantityInput()` regex to accept leading-dot decimal entries (e.g., `.5` → `0.5`, `.25` → `0.25`) for `g` and `mL` while still keeping `pieces` whole integers.
+  - Added per-unit delta validation inside `validateBackup()` so hand-edited JSON backups cannot apply fractional event deltas to `pieces` batches or >2 decimal places to `g`/`mL` batches.
+  - Updated `hoursLeftLabel()` to return `'<1m left'` instead of `'0m left'` when fewer than 60 seconds remain.
+- **Context-aware category recommendations & mismatch guard (`lib/domain/suggest_food_category.dart`, `lib/widgets/category_recommendation_banner.dart`, `lib/add_groceries_dialog.dart`, `lib/edit_batch_dialog.dart`):**
+  - Added standalone prioritized keyword/phrase matcher `suggestFoodCategory()` and `categoryMismatchWarning()` (prioritizing `Leftovers & Prepared`, `Condiments & Sauces`, `Canned & Dry`, and `Beverages` ahead of base ingredients so `"Cooked rice"`, `"Soy milk"`, `"Soy sauce"`, and `"Canned tuna"` classify accurately).
+  - Auto-selects the suggested category as the user types or scans a label in `AddGroceriesScreen` until manually overridden, and renders a 1-tap `CategoryRecommendationBanner` in both `AddGroceriesScreen` and `EditBatchDialog` whenever the selected category conflicts with a known food suggestion.
+- **Verification (`test/category_and_decimal_test.dart`):** Added domain, backup, and widget tests covering `.5` input parsing, backup event-delta unit validation, `<1m left`, compound-name category priority, auto-selection, and the 1-tap mismatch banner.
+
 ## 2026-11-25 (21:43 +08:00)
 
 - **Reason for change:** User approved the scope audit & remaining tasks plan to close the two small proposal-vs-implementation gaps (curated food categories + category search/filter, and decimal quantities for measured units `g`/`mL`), reconcile stale repo documentation, silence the JDK 25 Gradle launcher warning, and build smaller `--split-per-abi` release APKs (while deferring the optional in-app update checker).

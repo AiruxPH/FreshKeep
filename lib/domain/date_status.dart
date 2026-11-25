@@ -52,6 +52,7 @@ String? hoursLeftLabel(String date, String time, DateTime now) {
   if (remaining.isNegative || remaining == Duration.zero) return null;
   final hours = remaining.inHours;
   final minutes = remaining.inMinutes % 60;
+  if (hours == 0 && minutes == 0) return '<1m left';
   if (hours == 0) return '${minutes}m left';
   if (minutes == 0) return '${hours}h left';
   return '${hours}h ${minutes}m left';
