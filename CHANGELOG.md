@@ -1,5 +1,10 @@
 # Offline change log
 
+## 2026-11-26 (09:30 +08:00)
+
+- **Reason for change:** Recorded a persistent checklist of agreed questionnaire adjustments (`Freshkeep_-_questionnaire_polished (1).docx`, 5-point Likert scale without `N/O` and keeping `Participant name` with anonymization in reporting) and IMRAD manuscript conversion tasks (`FreshKeep_Research_Proposal(IMRAD).docx`).
+- **Documentation (`plans/IMRAD Paper and Survey Revision Checklist.md`):** Created structured checklist covering survey wording fixes, exact implemented build specs (Flutter `3.47.2`, Dart `3.13.2`, schema `v9`, `121/121` passing tests, `R1–R55`), packaging-label OCR rationale, ethics/scoring alignment, and Results/Discussion placeholders.
+
 ## 2026-11-26 (00:25 +08:00)
 
 - **Reason for change:** Resolved 4 additional edge cases identified during secondary QA review (plural/corned-beef food matching, narrow/2× text overflow risk in `CategoryRecommendationBanner`, future starting dates in storage-guidance calculations, and 2-digit `EXP MM/YY` packaging prints in OCR).
