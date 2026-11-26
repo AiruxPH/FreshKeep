@@ -1,5 +1,11 @@
 # Offline change log
 
+## 2026-11-26 (09:45 +08:00)
+
+- **Reason for change:** Created a lightweight static GitHub Pages distribution landing page (`docs/`) so student evaluation participants can download the `34.1 MB` `arm64-v8a` release APK from Google Drive and follow the evaluation tasks before completing the printed questionnaire.
+- **GitHub Pages site (`docs/index.html`, `docs/styles.css`, `docs/icon.png`, `docs/.nojekyll`):**
+  - Added a mobile-first download page styled with FreshKeep's `#226345` botanical theme and dark-mode support, featuring direct Google Drive download + fallback links, Google Drive virus-scan/unknown-sources Android install guide, interactive participant task checklist, printed questionnaire reminder, and offline/privacy notice.
+
 ## 2026-11-26 (09:30 +08:00)
 
 - **Reason for change:** Recorded a persistent checklist of agreed questionnaire adjustments (`Freshkeep_-_questionnaire_polished (1).docx`, 5-point Likert scale without `N/O` and keeping `Participant name` with anonymization in reporting) and IMRAD manuscript conversion tasks (`FreshKeep_Research_Proposal(IMRAD).docx`).
