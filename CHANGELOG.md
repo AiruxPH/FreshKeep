@@ -1,5 +1,12 @@
 # Offline change log
 
+## 2026-11-26 (10:30 +08:00)
+
+- **Reason for change:** User provided the Google Forms evaluation link and noted optional consented documentation photos for participant testing.
+- **GitHub Pages & checklist (`docs/index.html`, `plans/IMRAD Paper and Survey Revision Checklist.md`):**
+  - Updated Section 4 of `docs/index.html` to include the `Open Google Form Survey` button (alongside printed sheet fallback) and an explicit voluntary photo-consent notice for academic documentation.
+  - Recorded the Google Form link and the consented documentation-photo note inside `plans/IMRAD Paper and Survey Revision Checklist.md`.
+
 ## 2026-11-26 (09:45 +08:00)
 
 - **Reason for change:** Created a lightweight static GitHub Pages distribution landing page (`docs/`) so student evaluation participants can download the `34.1 MB` `arm64-v8a` release APK from Google Drive and follow the evaluation tasks before completing the printed questionnaire.

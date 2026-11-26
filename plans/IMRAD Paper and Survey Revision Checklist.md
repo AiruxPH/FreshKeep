@@ -3,7 +3,7 @@
 Created: 2026-11-26  
 Targets:
 - Manuscript: `paper_and_presentation(proposal)/FreshKeep_Research_Proposal(IMRAD).docx` → Final IMRAD Paper
-- Survey: `paper_and_presentation(proposal)/Freshkeep_-_questionnaire_polished (1).docx` (Google Forms)
+- Survey: `paper_and_presentation(proposal)/Freshkeep_-_questionnaire_polished (1).docx` / Google Forms (`https://docs.google.com/forms/d/e/1FAIpQLSeqazJZfaJS-eTChevbZuaS1k_T2pdtu_-zVA3gwY_LlOVrpw/viewform?usp=header`) & printed sheets
 
 ---
 
@@ -54,6 +54,7 @@ Targets:
   - Explain the pivot from multi-item receipts to single-item packaging labels (citing ML Kit `[6]`, `[7]` and CORD `[8]`): front/back multi-side scanning, `MFG`/`MFD`/`PROD`/`PKD` exclusion, ambiguity confirmation chips (`DD/MM` vs `MM/DD` and month-only `NOV 2026` / `EXP 11/26`), and draft-only handoff to manual review.
 - [ ] **Evaluation & Data Handling (Survey Alignment):**
   - Specify the **5-point Likert scale (1–5, no `N/O`)**, add a one-line disclaimer that the survey was adapted from ISO/IEC 25010:2023 (not an official ISO instrument), and note that **`Participant name` was collected only to verify respondents and anonymized as `P1`, `P2`, ... when reporting results**.
+  - State clearly that any participant testing photos included in the documentation/appendices were taken strictly voluntarily and with explicit participant consent.
 
 ### 4. New Sections to Write (Results, Discussion, Limitations, Conclusion)
 - [ ] **Results — System Overview:** Insert 4–6 labeled release screenshots (Inventory, Add Groceries with category suggestion, Batch Details, Dashboard & Waste Log, Reminders/Backup/OCR).
